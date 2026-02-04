@@ -1,0 +1,135 @@
+﻿@page "/market-editor"
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.Core.Enums
+@using StandoffPortfolioTracker.AdminPanel.Services
+@inject ItemService ItemService
+@rendermode InteractiveServer
+
+<h3>🛒 Редактор Предметов (Справочник)</h3>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Добавить новый предмет</div>
+            <div class="card-body">
+                <EditForm Model="@newItem" OnValidSubmit="HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-2">
+                        <label>Название (напр. Empire Case)</label>
+                        <InputText @bind-Value="newItem.Name" class="form-control" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Скин (напр. Necromancer)</label>
+                        <InputText @bind-Value="newItem.SkinName" class="form-control" placeholder="Пусто для кейсов" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Тип</label>
+                        <InputSelect @bind-Value="newItem.Type" class="form-select">
+                            @foreach (var type in Enum.GetValues(typeof(ItemType)))
+                            {
+                                <option value="@type">@type</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-2">
+                        <label>Редкость</label>
+                        <InputSelect @bind-Value="newItem.Rarity" class="form-select">
+                            @foreach (var r in Enum.GetValues(typeof(ItemRarity)))
+                            {
+                                <option value="@r">@r</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mt-2 w-100">Создать</button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Все предметы и ЦЕНЫ</div>
+            <div class="card-body">
+                @if (items == null)
+                {
+                    <p>Загрузка...</p>
+                }
+                else
+                {
+                    <table class="table table-striped align-middle">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th style="width: 150px;">Цена (G)</th>
+                                <th>Тип / Редкость</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in items)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@item.Name</strong>
+                                        @if (!string.IsNullOrEmpty(item.SkinName))
+                                        {
+                                            <span class="text-muted"> | @item.SkinName</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <input type="number"
+                                               step="0.01"
+                                               class="form-control"
+                                               value="@item.CurrentMarketPrice"
+                                               @onchange="@(e => UpdatePrice(item, e.Value))" />
+                                    </td>
+                                    <td>
+                                        <small>@item.Type <br /> @item.Rarity</small>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ItemBase>? items;
+    private ItemBase newItem = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        items = await ItemService.GetAllItemsAsync();
+    }
+
+    private async Task HandleSubmit()
+    {
+        newItem.CollectionId = 1; // Временная заглушка
+        await ItemService.AddItemAsync(newItem);
+        newItem = new ItemBase();
+        await LoadData();
+    }
+
+    // Новый метод: срабатывает, когда ты меняешь число в таблице
+    private async Task UpdatePrice(ItemBase item, object? newValue)
+    {
+        // Пытаемся превратить введенный текст в число (decimal)
+        if (decimal.TryParse(newValue?.ToString(), out decimal price))
+        {
+            item.CurrentMarketPrice = price; // Обновляем цену в памяти
+            await ItemService.UpdateItemAsync(item); // Сохраняем в базу через Сервис
+        }
+    }
+}

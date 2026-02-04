@@ -1,0 +1,168 @@
+﻿@page "/portfolio"
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.AdminPanel.Services
+@inject PortfolioService PortfolioService
+@inject ItemService ItemService
+@rendermode InteractiveServer
+
+<h3>💼 Мой Инвестиционный Портфель</h3>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">Новая покупка</div>
+            <div class="card-body">
+                <EditForm Model="@newItem" OnValidSubmit="HandleBuy">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label>Что купил?</label>
+                        <InputSelect @bind-Value="newItem.ItemBaseId" class="form-select">
+                            <option value="0">-- Выбери скин --</option>
+                            @if (availableItems != null)
+                            {
+                                @foreach (var item in availableItems)
+                                {
+                                    <option value="@item.Id">@item.Name @item.SkinName</option>
+                                }
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Цена покупки (G)</label>
+                        <InputNumber @bind-Value="newItem.PurchasePrice" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Количество</label>
+                        <InputNumber @bind-Value="newItem.Quantity" class="form-control" />
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">Добавить в портфель</button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">История покупок</div>
+            <div class="card-body">
+                @if (inventory == null)
+                {
+                    <p>Загрузка...</p>
+                }
+                else if (!inventory.Any())
+                {
+                    <div class="alert alert-info">Портфель пуст. Добавь первую покупку!</div>
+                }
+                else
+                {
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Предмет</th>
+                                <th>Покупка (G)</th>
+                                <th>Рынок (G)</th>
+                                <th>Профит (G)</th>
+                                <th>ROI (%)</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var invItem in inventory)
+                            {
+                                // Считаем математику прямо здесь
+                                var currentPrice = invItem.ItemBase?.CurrentMarketPrice ?? 0;
+                                var totalBuy = invItem.PurchasePrice * invItem.Quantity;
+
+                                // Комиссия 20% (получаем 0.8 от цены)
+                                var totalSell = (currentPrice * 0.8m) * invItem.Quantity;
+
+                                var profit = totalSell - totalBuy;
+
+                                // Цвет профита: Зеленый если плюс, Красный если минус
+                                var colorClass = profit >= 0 ? "text-success" : "text-danger";
+                                var sign = profit > 0 ? "+" : "";
+
+                                <tr>
+                                    <td>
+                                        <strong>@invItem.ItemBase?.Name</strong>
+                                        <div class="small text-muted">@invItem.ItemBase?.SkinName (@invItem.Quantity шт.)</div>
+                                    </td>
+                                    <td>
+                                        @invItem.PurchasePrice.ToString("N2") <br />
+                                        <small class="text-muted">Всего: @totalBuy.ToString("N0")</small>
+                                    </td>
+                                    <td>
+                                        @currentPrice.ToString("N2") <br />
+                                        <small class="text-muted">После комиссии: @(currentPrice * 0.8m)</small>
+                                    </td>
+                                    <td class="@colorClass fw-bold">
+                                        @sign@profit.ToString("N2")
+                                    </td>
+                                    <td class="@colorClass">
+                                        @if (totalBuy > 0)
+                                        {
+                                            @(((profit / totalBuy) * 100).ToString("N1"))
+
+                                            <span>%</span>
+                                        }
+                                        else
+                                        {
+                                            <span>0%</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(invItem.Id)">✕</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ItemBase> availableItems = new();
+    private List<InventoryItem> inventory = new();
+    private InventoryItem newItem = new() { Quantity = 1 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Загружаем список всех возможных скинов для выпадающего списка
+        availableItems = await ItemService.GetAllItemsAsync();
+
+        // 2. Загружаем текущий портфель (пока хардкод ID = 1)
+        await LoadInventory();
+    }
+
+    private async Task LoadInventory()
+    {
+        inventory = await PortfolioService.GetInventoryAsync(1);
+    }
+
+    private async Task HandleBuy()
+    {
+        if (newItem.ItemBaseId == 0) return; // Защита от пустого выбора
+
+        newItem.PortfolioAccountId = 1; // Хардкод аккаунта
+        newItem.PurchaseDate = DateTime.Now;
+
+        await PortfolioService.AddPurchaseAsync(newItem);
+
+        // Сброс и обновление
+        newItem = new InventoryItem { Quantity = 1, PurchasePrice = 0 };
+        await LoadInventory();
+    }
+
+    private async Task Delete(int id)
+    {
+        await PortfolioService.DeleteItemAsync(id);
+        await LoadInventory();
+    }
+}
