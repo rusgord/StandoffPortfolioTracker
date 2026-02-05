@@ -191,17 +191,32 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         // Улучшенный парсер типов (смотрит и в название)
         private StandoffPortfolioTracker.Core.Enums.ItemType ParseType(string typeStr, string nameStr)
         {
+            // Объединяем тип и имя для поиска ключевых слов
             string combined = (typeStr + " " + nameStr).ToLower();
 
+            // 1. Сначала проверяем явные типы
             if (combined.Contains("sticker") || combined.Contains("стикер")) return StandoffPortfolioTracker.Core.Enums.ItemType.Sticker;
             if (combined.Contains("charm") || combined.Contains("брелок")) return StandoffPortfolioTracker.Core.Enums.ItemType.Charm;
             if (combined.Contains("gloves") || combined.Contains("перчатки")) return StandoffPortfolioTracker.Core.Enums.ItemType.Glove;
-            if (combined.Contains("container") || combined.Contains("case") || combined.Contains("box") || combined.Contains("pack")) 
+
+            // 2. Граффити и наборы
+            if (combined.Contains("graffiti") || combined.Contains("граффити")) return StandoffPortfolioTracker.Core.Enums.ItemType.Graffiti;
+            if (combined.Contains("fragment") || combined.Contains("фрагмент")) return StandoffPortfolioTracker.Core.Enums.ItemType.Fragment;
+
+            // 3. Контейнеры
+            if (combined.Contains("container") || combined.Contains("case") || combined.Contains("box") || combined.Contains("pack"))
                 return StandoffPortfolioTracker.Core.Enums.ItemType.Container;
-            if (combined.Contains("knife") || combined.Contains("kukri") || combined.Contains("daggers") || combined.Contains("karambit") || combined.Contains("bayonet") || combined.Contains("jkommando") || combined.Contains("scorpion") || combined.Contains("kunai") || combined.Contains("tanto") || combined.Contains("dual daggers") || combined.Contains("butterfly") || combined.Contains("flip") || combined.Contains("fang")) 
+
+            // 4. Ножи
+            if (combined.Contains("knife") || combined.Contains("kukri") || combined.Contains("daggers") || combined.Contains("karambit") || combined.Contains("bayonet") || combined.Contains("jkommando") || combined.Contains("scorpion") || combined.Contains("kunai") || combined.Contains("tanto") || combined.Contains("dual daggers") || combined.Contains("butterfly") || combined.Contains("flip") || combined.Contains("fang") || combined.Contains("stiletto"))
                 return StandoffPortfolioTracker.Core.Enums.ItemType.Knife;
-            
-            return StandoffPortfolioTracker.Core.Enums.ItemType.Skin;
+
+            // 5. Гранаты (обычно скины на гранаты имеют слово Grenade в типе или названии)
+            if (combined.Contains("grenade") || combined.Contains("flashbang") || combined.Contains("smoke"))
+                return StandoffPortfolioTracker.Core.Enums.ItemType.Grenade;
+
+            // Если ничего не подошло — считаем это оружием (Guns)
+            return StandoffPortfolioTracker.Core.Enums.ItemType.Guns;
         }
 
         // ==========================================
@@ -330,17 +345,6 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             if (Enum.TryParse(typeof(StandoffPortfolioTracker.Core.Enums.ItemRarity), rarityStr, true, out var result))
                 return (StandoffPortfolioTracker.Core.Enums.ItemRarity)result;
             return StandoffPortfolioTracker.Core.Enums.ItemRarity.Common;
-        }
-
-        private StandoffPortfolioTracker.Core.Enums.ItemType ParseType(string typeStr)
-        {
-            if (typeStr.Contains("Container") || typeStr.Contains("Case") || typeStr.Contains("Box"))
-                return StandoffPortfolioTracker.Core.Enums.ItemType.Container;
-            if (typeStr.Contains("Sticker")) return StandoffPortfolioTracker.Core.Enums.ItemType.Sticker;
-            if (typeStr.Contains("Charm")) return StandoffPortfolioTracker.Core.Enums.ItemType.Charm;
-            if (typeStr.Contains("Gloves")) return StandoffPortfolioTracker.Core.Enums.ItemType.Glove;
-            if (typeStr.Contains("Knife") || typeStr.Contains("Kukri") || typeStr.Contains("Daggers") || typeStr.Contains("Karambit")) return StandoffPortfolioTracker.Core.Enums.ItemType.Knife;
-            return StandoffPortfolioTracker.Core.Enums.ItemType.Skin;
         }
     }
 
