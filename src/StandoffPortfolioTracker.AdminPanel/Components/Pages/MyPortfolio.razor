@@ -1,8 +1,10 @@
 ﻿@page "/portfolio"
 @using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.Core.Enums
 @using StandoffPortfolioTracker.AdminPanel.Services
 @inject PortfolioService PortfolioService
 @inject ItemService ItemService
+@inject PriceParserService ParserService
 @rendermode InteractiveServer
 
 <h3>💼 Мой Инвестиционный Портфель</h3>
@@ -10,29 +12,87 @@
 <div class="row">
     <div class="col-md-4">
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white">Новая покупка</div>
+            <div class="card-header bg-primary text-white">
+                🔍 Поиск предмета
+            </div>
             <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-12">
+                        <input type="text" class="form-control form-control-sm"
+                               placeholder="Название (напр. AKR)"
+                               @bind="searchName" @bind:event="oninput" @onkeyup="FilterItems" />
+                    </div>
+
+                    <div class="col-6">
+                        <select class="form-select form-select-sm" @bind="selectedType" @bind:after="FilterItems">
+                            <option value="">Все типы</option>
+                            @foreach (var t in Enum.GetValues(typeof(ItemType)))
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-6">
+                        <select class="form-select form-select-sm" @bind="selectedRarity" @bind:after="FilterItems">
+                            <option value="">Любая редкость</option>
+                            @foreach (var r in Enum.GetValues(typeof(ItemRarity)))
+                            {
+                                <option value="@r">@r</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <select class="form-select form-select-sm" @bind="selectedCollectionId" @bind:after="FilterItems">
+                            <option value="0">Все коллекции</option>
+                            @if (collections != null)
+                            {
+                                @foreach (var c in collections)
+                                {
+                                    <option value="@c.Id">@c.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="stFilter"
+                                   @bind="isStatTrackFilter" @bind:after="FilterItems">
+                            <label class="form-check-label" for="stFilter">Только StatTrack™</label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr />
+
                 <EditForm Model="@newItem" OnValidSubmit="HandleBuy">
                     <DataAnnotationsValidator />
 
                     <div class="mb-3">
-                        <label>Что купил?</label>
+                        <label class="form-label fw-bold">Выберите скин:</label>
                         <InputSelect @bind-Value="newItem.ItemBaseId" class="form-select">
-                            <option value="0">-- Выбери скин --</option>
-                            @if (availableItems != null)
+                            @if (filteredItems.Any())
                             {
-                                @foreach (var item in availableItems)
+                                <option value="0">-- Найдено @filteredItems.Count шт. --</option>
+                                @foreach (var item in filteredItems.Take(100)) // Ограничим список, чтобы не тормозило
                                 {
-                                    <option value="@item.Id">@item.Name @item.SkinName</option>
+                                    <option value="@item.Id">
+                                        @item.Name | @item.SkinName @(item.IsStatTrack ? "(ST)" : "")
+                                    </option>
                                 }
+                            }
+                            else
+                            {
+                                <option value="0">-- Ничего не найдено --</option>
                             }
                         </InputSelect>
                     </div>
 
                     <div class="mb-3">
-                        <label>Цена закупки (G)</label>
+                        <label>Цена покупки (G)</label>
                         <InputNumber @bind-Value="newItem.PurchasePrice" class="form-control" />
-                        <small class="text-muted">За одну штуку</small>
                     </div>
 
                     <div class="mb-3">
@@ -40,7 +100,9 @@
                         <InputNumber @bind-Value="newItem.Quantity" class="form-control" />
                     </div>
 
-                    <button type="submit" class="btn btn-success w-100">Добавить в портфель</button>
+                    <button type="submit" class="btn btn-success w-100" disabled="@(newItem.ItemBaseId == 0)">
+                        ➕ Добавить в портфель
+                    </button>
                 </EditForm>
             </div>
         </div>
@@ -48,8 +110,11 @@
 
     <div class="col-md-8">
         <div class="card shadow-sm">
-            <div class="card-header">
-                Мои Активы
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Мои Активы</span>
+                <button class="btn btn-sm btn-outline-primary" @onclick="UpdateAllPortfolioPrices">
+                    🔄 Обновить все цены
+                </button>
             </div>
             <div class="card-body">
                 @if (inventory == null)
@@ -58,77 +123,78 @@
                 }
                 else if (!inventory.Any())
                 {
-                    <div class="alert alert-info">Портфель пуст. Добавь первую покупку!</div>
+                    <div class="alert alert-info">Портфель пуст. Используйте фильтры слева для добавления!</div>
                 }
                 else
                 {
-                    <table class="table table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>Фото</th>
-                                <th>Предмет</th>
-                                <th>Вложено</th>
-                                <th>Сейчас (с ком.)</th>
-                                <th>Профит</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var invItem in inventory)
-                            {
-                                // --- МАТЕМАТИКА ---
-                                var marketPrice = invItem.ItemBase?.CurrentMarketPrice ?? 0;
-                                var totalBuy = invItem.PurchasePrice * invItem.Quantity;
-
-                                // Комиссия рынка 20% (получаем 0.8 от цены)
-                                var sellPriceOne = marketPrice * 0.8m;
-                                var totalSell = sellPriceOne * invItem.Quantity;
-
-                                var profit = totalSell - totalBuy;
-                                var profitPercent = totalBuy > 0 ? (profit / totalBuy) * 100 : 0;
-
-                                // Цвета
-                                var profitClass = profit >= 0 ? "text-success" : "text-danger";
-                                var sign = profit > 0 ? "+" : "";
-
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
                                 <tr>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(invItem.ItemBase?.ImageUrl))
-                                        {
-                                            <img src="@invItem.ItemBase.ImageUrl" alt="skin"
-                                                 style="width: 50px; height: 50px; object-fit: contain;" />
-                                        }
-                                        else
-                                        {
-                                            <div style="width: 50px; height: 50px; background: #eee; border-radius: 4px;"></div>
-                                        }
-                                    </td>
-                                    <td>
-                                        <strong>@invItem.ItemBase?.Name</strong>
-                                        <div class="small text-muted">@invItem.ItemBase?.SkinName</div>
-                                        <span class="badge bg-secondary">@invItem.Quantity шт.</span>
-                                    </td>
-                                    <td>
-                                        <div>@invItem.PurchasePrice.ToString("N2") G</div>
-                                        <small class="text-muted">Всего: @totalBuy.ToString("N0")</small>
-                                    </td>
-                                    <td>
-                                        <div>@marketPrice.ToString("N2") G</div>
-                                        <small class="text-muted">Чистыми: @totalSell.ToString("N0")</small>
-                                    </td>
-                                    <td class="@profitClass">
-                                        <div class="fw-bold">@sign@profit.ToString("N2") G</div>
-                                        <small>@sign@profitPercent.ToString("N1")%</small>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(invItem.Id)">
-                                            🗑
-                                        </button>
-                                    </td>
+                                    <th>Фото</th>
+                                    <th>Предмет</th>
+                                    <th>Покупка (шт.)</th>
+                                    <th>Рынок (G)</th>
+                                    <th>Действия</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach (var invItem in inventory)
+                                {
+                                    var marketPrice = invItem.ItemBase?.CurrentMarketPrice ?? 0;
+                                    var isUpdating = updatingItems.Contains(invItem.ItemBaseId);
+
+                                    <tr>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(invItem.ItemBase?.ImageUrl))
+                                            {
+                                                <img src="@invItem.ItemBase.ImageUrl" style="width: 45px; height: 45px; object-fit: contain;" />
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (invItem.ItemBase?.IsStatTrack == true)
+                                            {
+                                                <span class="badge bg-warning text-dark me-1" style="font-size: 0.6rem;">ST</span>
+                                            }
+                                            <strong>@invItem.ItemBase?.Name</strong>
+                                            <div class="small text-muted">@invItem.ItemBase?.SkinName</div>
+                                            <span class="badge bg-secondary rounded-pill">x @invItem.Quantity</span>
+                                        </td>
+                                        <td>
+                                            @invItem.PurchasePrice.ToString("N2")
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <span class="fw-bold me-2 @(marketPrice > invItem.PurchasePrice ? "text-success" : "text-danger")">
+                                                    @marketPrice.ToString("N2")
+                                                </span>
+
+                                                <button class="btn btn-sm btn-light border"
+                                                        @onclick="() => UpdateSinglePrice(invItem.ItemBaseId)"
+                                                        disabled="@isUpdating"
+                                                        title="Обновить цену">
+                                                    @if (isUpdating)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm"></span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>🔄</span>
+                                                    }
+                                                </button>
+                                            </div>
+                                            <small class="text-muted" style="font-size: 0.7rem;">
+                                                Чистыми: @((marketPrice * 0.8m).ToString("N2"))
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(invItem.Id)">✕</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 }
             </div>
         </div>
@@ -136,21 +202,67 @@
 </div>
 
 @code {
-    private List<ItemBase> availableItems = new();
+    // Данные
+    private List<ItemBase> allItems = new(); // Полный список (кэш)
+    private List<ItemBase> filteredItems = new(); // Отфильтрованный список
+    private List<GameCollection> collections = new();
     private List<InventoryItem> inventory = new();
     private InventoryItem newItem = new() { Quantity = 1 };
 
+    // Фильтры
+    private string searchName = "";
+    private string selectedType = "";
+    private string selectedRarity = "";
+    private int selectedCollectionId = 0;
+    private bool isStatTrackFilter = false;
+
+    // Состояние UI
+    private HashSet<int> updatingItems = new(); // ID предметов, которые сейчас обновляются
+
     protected override async Task OnInitializedAsync()
     {
-        // Загружаем список для выпадающего меню
-        availableItems = await ItemService.GetAllItemsAsync();
-        // Загружаем портфель
+        // Загружаем справочники один раз
+        allItems = await ItemService.GetAllItemsAsync();
+        collections = await ItemService.GetCollectionsAsync();
+
+        // Первичная фильтрация
+        FilterItems();
+
         await LoadInventory();
+    }
+
+    private void FilterItems()
+    {
+        var query = allItems.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchName))
+            query = query.Where(i => (i.Name + " " + i.SkinName).Contains(searchName, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrEmpty(selectedType))
+            query = query.Where(i => i.Type.ToString() == selectedType);
+
+        if (!string.IsNullOrEmpty(selectedRarity))
+            query = query.Where(i => i.Rarity.ToString() == selectedRarity);
+
+        if (selectedCollectionId > 0)
+            query = query.Where(i => i.CollectionId == selectedCollectionId);
+
+        // Фильтр StatTrack (показываем только ST если галочка стоит, или все если не стоит - как удобнее?)
+        // Обычно удобнее: галочка "Только ST". Если снята - показываем и то и то, или только обычные.
+        // Давай сделаем: Если галочка стоит -> Только ST. Если нет -> Только обычные (чтобы не путаться).
+        query = query.Where(i => i.IsStatTrack == isStatTrackFilter);
+
+        filteredItems = query.OrderBy(i => i.Name).ToList();
+
+        // Сбрасываем выбор, если текущий выбранный предмет пропал из фильтра
+        if (!filteredItems.Any(i => i.Id == newItem.ItemBaseId))
+        {
+            newItem.ItemBaseId = 0;
+        }
     }
 
     private async Task LoadInventory()
     {
-        // Хардкод ID аккаунта = 1 (пока нет авторизации)
         inventory = await PortfolioService.GetInventoryAsync(1);
     }
 
@@ -162,15 +274,40 @@
         newItem.PurchaseDate = DateTime.Now;
 
         await PortfolioService.AddPurchaseAsync(newItem);
-
-        // Сброс полей
-        newItem = new InventoryItem { Quantity = 1, PurchasePrice = 0 };
+        newItem = new InventoryItem { Quantity = 1, PurchasePrice = 0, ItemBaseId = 0 }; // Сброс
         await LoadInventory();
     }
 
     private async Task Delete(int id)
     {
         await PortfolioService.DeleteItemAsync(id);
+        await LoadInventory();
+    }
+
+    // Обновление цены ОДНОГО предмета
+    private async Task UpdateSinglePrice(int itemBaseId)
+    {
+        if (updatingItems.Contains(itemBaseId)) return;
+
+        updatingItems.Add(itemBaseId); // Включаем спиннер
+        StateHasChanged();
+
+        await ParserService.UpdateItemPriceAsync(itemBaseId);
+
+        // Обновляем список, чтобы увидеть новую цену
+        // (Можно оптимизировать и обновить только поле в памяти, но так надежнее)
+        // Обновим справочник цен в памяти
+        var updatedItem = await ItemService.GetItemByIdAsync(itemBaseId); // Надо бы добавить такой метод, или перегрузить весь портфель
+        await LoadInventory();
+
+        updatingItems.Remove(itemBaseId); // Выключаем спиннер
+    }
+
+    // Обновить весь портфель разом
+    private async Task UpdateAllPortfolioPrices()
+    {
+        // Тут можно вызвать твой метод UpdatePortfolioPricesAsync
+        await ParserService.UpdatePortfolioPricesAsync();
         await LoadInventory();
     }
 }

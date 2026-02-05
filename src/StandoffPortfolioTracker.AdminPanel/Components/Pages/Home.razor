@@ -1,7 +1,215 @@
 ﻿@page "/"
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.AdminPanel.Services
+@inject PortfolioService PortfolioService
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Главная | Standoff Tracker</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container-fluid p-0">
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h1 class="h3 mb-0 text-gray-800">📊 Дашборд Инвестора</h1>
+        </div>
+        <div class="col-auto">
+            <a href="portfolio" class="btn btn-sm btn-primary shadow-sm">
+                ➕ Добавить покупку
+            </a>
+        </div>
+    </div>
 
-Welcome to your new app.
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2 border-primary border-3 border-top-0 border-bottom-0 border-end-0">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Вложено средств
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @totalInvested.ToString("N0") G
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="fs-2">💰</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2 border-info border-3 border-top-0 border-bottom-0 border-end-0">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Стоимость (с ком. 20%)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @currentValue.ToString("N0") G
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="fs-2">🏦</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2 @(totalProfit >= 0 ? "border-success" : "border-danger") border-3 border-top-0 border-bottom-0 border-end-0">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold @(totalProfit >= 0 ? "text-success" : "text-danger") text-uppercase mb-1">
+                                Чистый Профит
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @(totalProfit > 0 ? "+" : "")@totalProfit.ToString("N0") G
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="fs-2">📈</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2 border-warning border-3 border-top-0 border-bottom-0 border-end-0">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                ROI (Окупаемость)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @roi.ToString("N1")%
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="fs-2">🚀</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">💎 Лучшие активы (Топ 3)</h6>
+                </div>
+                <div class="card-body">
+                    @if (topItems.Any())
+                    {
+                        @foreach (var item in topItems)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <strong>@item.Name</strong> <span class="text-muted">@item.Skin</span>
+                                    <div class="small text-success">Профит: +@item.Profit.ToString("N0") G</div>
+                                </div>
+                                <span class="badge bg-success rounded-pill">+@item.Roi.ToString("N0")%</span>
+                            </div>
+                            <hr class="my-1" />
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">Нет данных</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">🔻 Худшие активы (Топ 3)</h6>
+                </div>
+                <div class="card-body">
+                    @if (worstItems.Any())
+                    {
+                        @foreach (var item in worstItems)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <strong>@item.Name</strong> <span class="text-muted">@item.Skin</span>
+                                    <div class="small text-danger">Убыток: @item.Profit.ToString("N0") G</div>
+                                </div>
+                                <span class="badge bg-danger rounded-pill">@item.Roi.ToString("N0")%</span>
+                            </div>
+                            <hr class="my-1" />
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">Нет данных (или вы в плюсе по всему!)</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private decimal totalInvested = 0;
+    private decimal currentValue = 0;
+    private decimal totalProfit = 0;
+    private decimal roi = 0;
+
+    // Класс-помощник для отображения топов
+    class AssetStat { public string Name { get; set; } public string Skin { get; set; } public decimal Profit { get; set; } public decimal Roi { get; set; } }
+
+    private List<AssetStat> topItems = new();
+    private List<AssetStat> worstItems = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Берем весь инвентарь (пока хардкод аккаунта 1)
+        var inventory = await PortfolioService.GetInventoryAsync(1);
+
+        if (inventory.Any())
+        {
+            // 2. Считаем общие цифры
+            totalInvested = inventory.Sum(i => i.PurchasePrice * i.Quantity);
+
+            // Текущая стоимость = (Цена рынка * 0.8) * Кол-во
+            currentValue = inventory.Sum(i => (i.ItemBase?.CurrentMarketPrice ?? 0) * 0.8m * i.Quantity);
+
+            totalProfit = currentValue - totalInvested;
+
+            roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+
+            // 3. Считаем статистику по каждому предмету для топов
+            var stats = inventory.Select(i =>
+            {
+                var itemInvest = i.PurchasePrice * i.Quantity;
+                var itemValue = (i.ItemBase?.CurrentMarketPrice ?? 0) * 0.8m * i.Quantity;
+                var itemProfit = itemValue - itemInvest;
+                var itemRoi = itemInvest > 0 ? (itemProfit / itemInvest) * 100 : 0;
+
+                return new AssetStat
+                    {
+                        Name = i.ItemBase?.Name ?? "?",
+                        Skin = i.ItemBase?.SkinName ?? "",
+                        Profit = itemProfit,
+                        Roi = itemRoi
+                    };
+            }).ToList();
+
+            // Топ 3 по профиту
+            topItems = stats.OrderByDescending(s => s.Profit).Take(3).ToList();
+
+            // Худшие 3 (берем только те, где убыток)
+            worstItems = stats.Where(s => s.Profit < 0).OrderBy(s => s.Profit).Take(3).ToList();
+        }
+    }
+}

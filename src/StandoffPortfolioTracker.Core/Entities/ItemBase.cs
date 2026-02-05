@@ -28,5 +28,8 @@ namespace StandoffPortfolioTracker.Core.Entities
         public decimal CurrentMarketPrice { get; set; }
         // Добавляем это поле, чтобы хранить "кривое" имя с сайта (с кавычками)
         public string? OriginalName { get; set; }
+
+        // Новое поле: является ли скин StatTrack версией
+        public bool IsStatTrack { get; set; }
     }
 }
