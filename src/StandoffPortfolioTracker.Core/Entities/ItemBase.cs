@@ -26,5 +26,7 @@ namespace StandoffPortfolioTracker.Core.Entities
 
         public string? ImageUrl { get; set; } // Ссылка на картинку (потом пригодится для UI)
         public decimal CurrentMarketPrice { get; set; }
+        // Добавляем это поле, чтобы хранить "кривое" имя с сайта (с кавычками)
+        public string? OriginalName { get; set; }
     }
 }

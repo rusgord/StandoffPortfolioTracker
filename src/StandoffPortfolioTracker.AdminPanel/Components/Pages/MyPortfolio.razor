@@ -9,7 +9,7 @@
 
 <div class="row">
     <div class="col-md-4">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-success text-white">Новая покупка</div>
             <div class="card-body">
                 <EditForm Model="@newItem" OnValidSubmit="HandleBuy">
@@ -30,8 +30,9 @@
                     </div>
 
                     <div class="mb-3">
-                        <label>Цена покупки (G)</label>
+                        <label>Цена закупки (G)</label>
                         <InputNumber @bind-Value="newItem.PurchasePrice" class="form-control" />
+                        <small class="text-muted">За одну штуку</small>
                     </div>
 
                     <div class="mb-3">
@@ -46,8 +47,10 @@
     </div>
 
     <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">История покупок</div>
+        <div class="card shadow-sm">
+            <div class="card-header">
+                Мои Активы
+            </div>
             <div class="card-body">
                 @if (inventory == null)
                 {
@@ -62,60 +65,65 @@
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
+                                <th>Фото</th>
                                 <th>Предмет</th>
-                                <th>Покупка (G)</th>
-                                <th>Рынок (G)</th>
-                                <th>Профит (G)</th>
-                                <th>ROI (%)</th>
+                                <th>Вложено</th>
+                                <th>Сейчас (с ком.)</th>
+                                <th>Профит</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var invItem in inventory)
                             {
-                                // Считаем математику прямо здесь
-                                var currentPrice = invItem.ItemBase?.CurrentMarketPrice ?? 0;
+                                // --- МАТЕМАТИКА ---
+                                var marketPrice = invItem.ItemBase?.CurrentMarketPrice ?? 0;
                                 var totalBuy = invItem.PurchasePrice * invItem.Quantity;
 
-                                // Комиссия 20% (получаем 0.8 от цены)
-                                var totalSell = (currentPrice * 0.8m) * invItem.Quantity;
+                                // Комиссия рынка 20% (получаем 0.8 от цены)
+                                var sellPriceOne = marketPrice * 0.8m;
+                                var totalSell = sellPriceOne * invItem.Quantity;
 
                                 var profit = totalSell - totalBuy;
+                                var profitPercent = totalBuy > 0 ? (profit / totalBuy) * 100 : 0;
 
-                                // Цвет профита: Зеленый если плюс, Красный если минус
-                                var colorClass = profit >= 0 ? "text-success" : "text-danger";
+                                // Цвета
+                                var profitClass = profit >= 0 ? "text-success" : "text-danger";
                                 var sign = profit > 0 ? "+" : "";
 
                                 <tr>
                                     <td>
-                                        <strong>@invItem.ItemBase?.Name</strong>
-                                        <div class="small text-muted">@invItem.ItemBase?.SkinName (@invItem.Quantity шт.)</div>
-                                    </td>
-                                    <td>
-                                        @invItem.PurchasePrice.ToString("N2") <br />
-                                        <small class="text-muted">Всего: @totalBuy.ToString("N0")</small>
-                                    </td>
-                                    <td>
-                                        @currentPrice.ToString("N2") <br />
-                                        <small class="text-muted">После комиссии: @(currentPrice * 0.8m)</small>
-                                    </td>
-                                    <td class="@colorClass fw-bold">
-                                        @sign@profit.ToString("N2")
-                                    </td>
-                                    <td class="@colorClass">
-                                        @if (totalBuy > 0)
+                                        @if (!string.IsNullOrEmpty(invItem.ItemBase?.ImageUrl))
                                         {
-                                            @(((profit / totalBuy) * 100).ToString("N1"))
-
-                                            <span>%</span>
+                                            <img src="@invItem.ItemBase.ImageUrl" alt="skin"
+                                                 style="width: 50px; height: 50px; object-fit: contain;" />
                                         }
                                         else
                                         {
-                                            <span>0%</span>
+                                            <div style="width: 50px; height: 50px; background: #eee; border-radius: 4px;"></div>
                                         }
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(invItem.Id)">✕</button>
+                                        <strong>@invItem.ItemBase?.Name</strong>
+                                        <div class="small text-muted">@invItem.ItemBase?.SkinName</div>
+                                        <span class="badge bg-secondary">@invItem.Quantity шт.</span>
+                                    </td>
+                                    <td>
+                                        <div>@invItem.PurchasePrice.ToString("N2") G</div>
+                                        <small class="text-muted">Всего: @totalBuy.ToString("N0")</small>
+                                    </td>
+                                    <td>
+                                        <div>@marketPrice.ToString("N2") G</div>
+                                        <small class="text-muted">Чистыми: @totalSell.ToString("N0")</small>
+                                    </td>
+                                    <td class="@profitClass">
+                                        <div class="fw-bold">@sign@profit.ToString("N2") G</div>
+                                        <small>@sign@profitPercent.ToString("N1")%</small>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(invItem.Id)">
+                                            🗑
+                                        </button>
                                     </td>
                                 </tr>
                             }
@@ -134,28 +142,28 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Загружаем список всех возможных скинов для выпадающего списка
+        // Загружаем список для выпадающего меню
         availableItems = await ItemService.GetAllItemsAsync();
-
-        // 2. Загружаем текущий портфель (пока хардкод ID = 1)
+        // Загружаем портфель
         await LoadInventory();
     }
 
     private async Task LoadInventory()
     {
+        // Хардкод ID аккаунта = 1 (пока нет авторизации)
         inventory = await PortfolioService.GetInventoryAsync(1);
     }
 
     private async Task HandleBuy()
     {
-        if (newItem.ItemBaseId == 0) return; // Защита от пустого выбора
+        if (newItem.ItemBaseId == 0) return;
 
-        newItem.PortfolioAccountId = 1; // Хардкод аккаунта
+        newItem.PortfolioAccountId = 1;
         newItem.PurchaseDate = DateTime.Now;
 
         await PortfolioService.AddPurchaseAsync(newItem);
 
-        // Сброс и обновление
+        // Сброс полей
         newItem = new InventoryItem { Quantity = 1, PurchasePrice = 0 };
         await LoadInventory();
     }

@@ -5,6 +5,7 @@ using StandoffPortfolioTracker.Infrastructure;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Net.Http.Json;
+using System.Collections.Concurrent;
 
 namespace StandoffPortfolioTracker.AdminPanel.Services
 {
@@ -24,52 +25,79 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
 
         public async Task<string> UpdateAllPricesAsync()
         {
+            // 1. Создаем контекст и загружаем все предметы
             using var context = await _factory.CreateDbContextAsync();
             var items = await context.ItemBases.ToListAsync();
 
             int successCount = 0;
+            int errorCount = 0;
 
-            foreach (var item in items)
+            // Потокобезопасная коллекция для сбора истории
+            // (EF Core нельзя трогать из разных потоков одновременно, поэтому сначала соберем данные сюда)
+            var historyBag = new ConcurrentBag<MarketHistory>();
+
+            // Настройка параллелизма (10 запросов одновременно)
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = 10 };
+
+            // 2. Запускаем параллельную обработку
+            await Parallel.ForEachAsync(items, parallelOptions, async (item, token) =>
             {
                 try
                 {
-                    // 1. Формируем полное имя для запроса
-                    var fullName = $"{item.Name} {item.SkinName}".Trim();
+                    // === ЛОГИКА ИМЕНИ ===
+                    // Если у нас есть "Оригинальное имя" (с кавычками), берем его.
+                    // Если нет — собираем по старинке.
+                    var fullName = !string.IsNullOrEmpty(item.OriginalName)
+                        ? item.OriginalName
+                        : $"{item.Name} {item.SkinName}".Trim();
 
-                    // ВАЖНО: Кодируем название для URL (пробелы превращаются в %20 и т.д.)
                     var encodedName = Uri.EscapeDataString(fullName);
-
-                    // 2. Стучимся напрямую в их API
                     var url = $"https://standoff-2.com/skins-new.php?command=getStat&name={encodedName}";
 
-                    // 3. Получаем данные (массив объектов)
-                    var history = await _httpClient.GetFromJsonAsync<List<PriceDataDto>>(url);
+                    // 3. Запрос к API
+                    var history = await _httpClient.GetFromJsonAsync<List<PriceDataDto>>(url, token);
 
                     if (history != null && history.Any())
                     {
-                        // Берем последнюю запись (самую свежую)
                         var lastEntry = history.Last();
 
-                        // Парсим цену (она может прийти строкой или числом)
-                        if (decimal.TryParse(lastEntry.PurchasePrice, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
+                        // Чистим цену (иногда приходит с запятой, иногда с точкой)
+                        string cleanPrice = lastEntry.PurchasePrice.Replace(",", ".");
+
+                        if (decimal.TryParse(cleanPrice, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
                         {
+                            // А. Обновляем текущую цену (в памяти объекта)
                             item.CurrentMarketPrice = price;
-                            successCount++;
+
+                            // Б. Создаем запись для истории и кладем в "мешок"
+                            historyBag.Add(new MarketHistory
+                            {
+                                ItemBaseId = item.Id,
+                                Price = price,
+                                RecordedAt = DateTime.UtcNow
+                            });
+
+                            // Безопасный счетчик
+                            Interlocked.Increment(ref successCount);
                         }
                     }
-
-                    // Небольшая задержка, чтобы не забанили IP
-                    await Task.Delay(500);
                 }
                 catch (Exception ex)
                 {
-                    // Логируем ошибку, но не останавливаемся
-                    Console.WriteLine($"Ошибка с {item.Name}: {ex.Message}");
+                    // Можно раскомментировать для отладки
+                    // Console.WriteLine($"Ошибка с {item.Name}: {ex.Message}");
+                    Interlocked.Increment(ref errorCount);
                 }
-            }
+            });
 
+            // 4. После завершения всех потоков — сохраняем всё в базу разом
+            // Добавляем всю накопленную историю
+            context.MarketHistory.AddRange(historyBag);
+
+            // Сохраняем изменения (и обновленные цены предметов, и новую историю)
             await context.SaveChangesAsync();
-            return $"Обновлено: {successCount}";
+
+            return $"Готово! Обновлено: {successCount}. Ошибок: {errorCount}";
         }
 
         // Вспомогательный класс для их JSON ответа
@@ -146,6 +174,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                     {
                         Name = name,
                         SkinName = skinName,
+                        OriginalName = skinDto.FullName,
                         Rarity = ParseRarity(skinDto.Rarity), // Метод-помощник ниже
                         Type = ParseType(skinDto.Type),       // Метод-помощник ниже
                         CollectionId = collection?.Id ?? 1,   // 1 - это дефолтная, если нет коллекции
