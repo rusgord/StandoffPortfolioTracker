@@ -31,5 +31,7 @@ namespace StandoffPortfolioTracker.Core.Entities
 
         // Новое поле: является ли скин StatTrack версией
         public bool IsStatTrack { get; set; }
+        // Является ли скин паттерновым
+        public bool IsPattern { get; set; } 
     }
 }

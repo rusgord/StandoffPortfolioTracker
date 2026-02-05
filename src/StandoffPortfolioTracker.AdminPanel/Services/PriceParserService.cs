@@ -27,117 +27,181 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         // ==========================================
         public async Task<string> ImportAllSkinsAsync()
         {
-            var url = "https://standoff-2.com/skins-new.php?command=getModelInfo";
-            var skinsFromSite = await _httpClient.GetFromJsonAsync<List<SkinDto>>(url);
+            var namesUrl = "https://standoff-2.com/skins-new.php?command=getNames";
+            var infoUrl = "https://standoff-2.com/skins-new.php?command=getModelInfo";
 
-            if (skinsFromSite == null) return "Ошибка: сайт вернул пустой список.";
+            var namesTask = _httpClient.GetFromJsonAsync<List<List<string>>>(namesUrl);
+            var infoTask = _httpClient.GetFromJsonAsync<List<SkinDto>>(infoUrl);
+
+            await Task.WhenAll(namesTask, infoTask);
+
+            var allNames = namesTask.Result;
+            var modelInfos = infoTask.Result;
+
+            if (allNames == null || modelInfos == null) return "Ошибка: сайт не вернул данные.";
+
+            // Словарь инфо для быстрого поиска
+            var infoDict = modelInfos
+                .GroupBy(x => x.FullName)
+                .ToDictionary(g => g.Key, g => g.First());
 
             using var context = await _factory.CreateDbContextAsync();
-
+            
+            // Загружаем базу и строим словарь по ЧИСТОМУ ключу (чтобы избежать дублей типа "Name" и "\"Name\"")
+            // Ключ: "name|skinname|stat" (в нижнем регистре)
             var existingItemsList = await context.ItemBases.ToListAsync();
             var existingItemsDict = existingItemsList
-                .GroupBy(i => $"{i.Name}|{i.SkinName ?? ""}|{i.IsStatTrack}")
+                .GroupBy(i => GenerateUniqueKey(i.Name, i.SkinName, i.IsStatTrack))
                 .ToDictionary(g => g.Key, g => g.First());
 
             var existingCollections = await context.GameCollections.ToDictionaryAsync(c => c.Name, c => c);
 
             int addedCount = 0;
             int updatedCount = 0;
+            int skippedDuplicates = 0;
 
-            foreach (var skinDto in skinsFromSite)
+            foreach (var nameEntry in allNames)
             {
-                // Чистим имя
-                string cleanFullName = skinDto.FullName.Replace("StatTrack", "").Trim();
-                string name = cleanFullName;
-                string? skinName = null;
+                if (nameEntry.Count == 0) continue;
+                string originalName = nameEntry[0];
+                if (string.IsNullOrWhiteSpace(originalName) || originalName == "sdk") continue;
 
-                var match = Regex.Match(cleanFullName, "(.+?)\\s+\"(.+?)\"");
-                if (match.Success)
+                // 1. Чистим имя
+                bool isStatTrack = originalName.Contains("StatTrack");
+                string baseNameForInfo = originalName.Replace("StatTrack", "").Trim();
+                
+                // Ищем инфо
+                SkinDto? info = null;
+                if (!infoDict.TryGetValue(originalName, out info) && isStatTrack)
                 {
-                    name = match.Groups[1].Value.Trim();
-                    skinName = match.Groups[2].Value.Trim();
+                    infoDict.TryGetValue(baseNameForInfo, out info);
                 }
-                else if (cleanFullName.Contains("\""))
-                {
-                    name = cleanFullName.Replace("\"", "").Trim();
-                }
+                if (info == null) info = new SkinDto { FullName = originalName, Type = "unknown", Rarity = "Common" };
 
-                var type = ParseType(skinDto.Type);
-                var rarity = ParseRarity(skinDto.Rarity);
+                // Парсим чистое имя и скин
+                var (name, skinName) = ParseNameParts(baseNameForInfo);
 
-                // Коллекция
+                // 2. Генерируем УНИКАЛЬНЫЙ КЛЮЧ для проверки дублей
+                // Это самое важное изменение: мы проверяем не по OriginalName, а по смыслу
+                string uniqueKey = GenerateUniqueKey(name, skinName, isStatTrack);
+
+                // 3. Определяем Тип (улучшенная версия, смотрит и в Имя тоже)
+                var type = ParseType(info.Type, name);
+                var rarity = ParseRarity(info.Rarity);
+
+                // 4. Коллекция
                 GameCollection? collection = null;
-                if (!string.IsNullOrEmpty(skinDto.Collection) && skinDto.Collection != "unknown")
+                if (!string.IsNullOrEmpty(info.Collection) && info.Collection != "unknown")
                 {
-                    if (!existingCollections.TryGetValue(skinDto.Collection, out collection))
+                    if (!existingCollections.TryGetValue(info.Collection, out collection))
                     {
-                        collection = new GameCollection { Name = skinDto.Collection };
+                        collection = new GameCollection { Name = info.Collection };
                         context.GameCollections.Add(collection);
                         await context.SaveChangesAsync();
-                        existingCollections[skinDto.Collection] = collection;
+                        existingCollections[info.Collection] = collection;
                     }
                 }
 
-                // Генерируем варианты (Обычный + ST)
-                var variantsToAdd = new List<bool>();
-
-                if (skinDto.FullName.Contains("StatTrack"))
+                // 5. Логика добавления/обновления
+                if (existingItemsDict.TryGetValue(uniqueKey, out var existingItem))
                 {
-                    variantsToAdd.Add(true);
+                    // Предмет уже есть (по чистому имени).
+                    // Обновляем OriginalName только если он стал "лучше" или поменялась картинка
+                    // Но не создаем новый!
+                    bool changed = false;
+                    
+                    // Если у нас в базе старое имя без кавычек, а пришло с кавычками (более точное для парсера) - обновим
+                    if (existingItem.OriginalName != originalName && originalName.Contains("\"")) 
+                    { 
+                        existingItem.OriginalName = originalName; 
+                        changed = true; 
+                    }
+                    
+                    if (existingItem.ImageUrl != info.ImageUrl) 
+                    { 
+                        existingItem.ImageUrl = info.ImageUrl; 
+                        changed = true; 
+                    }
+
+                    // Фикс типа (если раньше был Skin, а теперь мы поняли что это Charm)
+                    if (existingItem.Type != type)
+                    {
+                        existingItem.Type = type;
+                        changed = true;
+                    }
+
+                    if (changed) updatedCount++;
+                    else skippedDuplicates++;
                 }
                 else
                 {
-                    variantsToAdd.Add(false);
-                    if (type == StandoffPortfolioTracker.Core.Enums.ItemType.Skin ||
-                        type == StandoffPortfolioTracker.Core.Enums.ItemType.Knife)
+                    // Новая запись
+                    var newItem = new ItemBase
                     {
-                        variantsToAdd.Add(true);
-                    }
-                }
+                        Name = name,
+                        SkinName = skinName,
+                        OriginalName = originalName,
+                        IsStatTrack = isStatTrack,
+                        Rarity = rarity,
+                        Type = type,
+                        CollectionId = collection?.Id ?? 1,
+                        ImageUrl = info.ImageUrl,
+                        CurrentMarketPrice = 0
+                    };
 
-                foreach (var isStatTrack in variantsToAdd)
-                {
-                    var uniqueKey = $"{name}|{skinName ?? ""}|{isStatTrack}";
-
-                    string parserName;
-                    if (isStatTrack)
-                        parserName = skinDto.FullName.Contains("StatTrack") ? skinDto.FullName : $"StatTrack {skinDto.FullName}";
-                    else
-                        parserName = skinDto.FullName;
-
-                    if (existingItemsDict.TryGetValue(uniqueKey, out var existingItem))
-                    {
-                        if (existingItem.OriginalName != parserName || existingItem.ImageUrl != skinDto.ImageUrl)
-                        {
-                            existingItem.OriginalName = parserName;
-                            existingItem.ImageUrl = skinDto.ImageUrl;
-                            updatedCount++;
-                        }
-                    }
-                    else
-                    {
-                        var newItem = new ItemBase
-                        {
-                            Name = name,
-                            SkinName = skinName,
-                            OriginalName = parserName,
-                            IsStatTrack = isStatTrack,
-                            Rarity = rarity,
-                            Type = type,
-                            CollectionId = collection?.Id ?? 1,
-                            ImageUrl = skinDto.ImageUrl,
-                            CurrentMarketPrice = 0
-                        };
-
-                        context.ItemBases.Add(newItem);
-                        existingItemsDict[uniqueKey] = newItem;
-                        addedCount++;
-                    }
+                    context.ItemBases.Add(newItem);
+                    existingItemsDict[uniqueKey] = newItem; // Добавляем в кэш, чтобы следующий дубль отсекся
+                    addedCount++;
                 }
             }
 
             await context.SaveChangesAsync();
-            return $"База обновлена! Создано: {addedCount}. Обновлено: {updatedCount}";
+            return $"Готово! Новых: {addedCount}. Обновлено: {updatedCount}. Дубликатов пропущено: {skippedDuplicates}";
+        }
+
+        // ==========================================
+        // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+        // ==========================================
+        
+        private string GenerateUniqueKey(string? name, string? skin, bool st)
+        {
+            return $"{name?.ToLower().Trim()}|{skin?.ToLower().Trim()}|{st}";
+        }
+
+        private (string Name, string? Skin) ParseNameParts(string fullName)
+        {
+            string name = fullName;
+            string? skinName = null;
+
+            var match = Regex.Match(fullName, "(.+?)\\s+\"(.+?)\"");
+            if (match.Success)
+            {
+                name = match.Groups[1].Value.Trim();
+                skinName = match.Groups[2].Value.Trim();
+            }
+            else if (fullName.Contains("\""))
+            {
+                name = fullName.Replace("\"", "").Trim();
+            }
+            return (name, skinName);
+        }
+
+
+
+        // Улучшенный парсер типов (смотрит и в название)
+        private StandoffPortfolioTracker.Core.Enums.ItemType ParseType(string typeStr, string nameStr)
+        {
+            string combined = (typeStr + " " + nameStr).ToLower();
+
+            if (combined.Contains("sticker") || combined.Contains("стикер")) return StandoffPortfolioTracker.Core.Enums.ItemType.Sticker;
+            if (combined.Contains("charm") || combined.Contains("брелок")) return StandoffPortfolioTracker.Core.Enums.ItemType.Charm;
+            if (combined.Contains("gloves") || combined.Contains("перчатки")) return StandoffPortfolioTracker.Core.Enums.ItemType.Glove;
+            if (combined.Contains("container") || combined.Contains("case") || combined.Contains("box") || combined.Contains("pack")) 
+                return StandoffPortfolioTracker.Core.Enums.ItemType.Container;
+            if (combined.Contains("knife") || combined.Contains("kukri") || combined.Contains("daggers") || combined.Contains("karambit") || combined.Contains("bayonet") || combined.Contains("jkommando") || combined.Contains("scorpion") || combined.Contains("kunai") || combined.Contains("tanto") || combined.Contains("dual daggers") || combined.Contains("butterfly") || combined.Contains("flip") || combined.Contains("fang")) 
+                return StandoffPortfolioTracker.Core.Enums.ItemType.Knife;
+            
+            return StandoffPortfolioTracker.Core.Enums.ItemType.Skin;
         }
 
         // ==========================================
