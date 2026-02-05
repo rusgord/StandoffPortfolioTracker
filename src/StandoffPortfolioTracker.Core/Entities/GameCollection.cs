@@ -12,8 +12,14 @@ namespace StandoffPortfolioTracker.Core.Entities
         public int Id { get; set; }
 
         [Required]
-        public string Name { get; set; } = string.Empty; // "Origin", "Assistance" и т.д.
+        public string Name { get; set; } = string.Empty;
 
-        public bool IsRemoved { get; set; } // Убрана ли из магазина
+        // Твое поле: Убрана ли коллекция из магазина/дропа
+        public bool IsRemoved { get; set; }
+
+        // Новое поле: Ссылка на иконку коллекции
+        public string? ImageUrl { get; set; }
+
+        public ICollection<ItemBase> Items { get; set; } = new List<ItemBase>();
     }
 }
