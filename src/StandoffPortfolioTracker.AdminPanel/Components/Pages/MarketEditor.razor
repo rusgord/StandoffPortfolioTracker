@@ -59,11 +59,35 @@
         object-fit: contain;
     }
 
-    /* Подсветка выбранной коллекции в редакторе */
     .collection-btn-active {
         background-color: #e2e6ea;
         border-color: #6c757d;
     }
+
+    /* Стили для выпадающего списка поиска */
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        max-height: 200px;
+        overflow-y: auto;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .autocomplete-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+        .autocomplete-item:hover {
+            background-color: #f8f9fa;
+        }
 </style>
 
 <div class="container-fluid">
@@ -145,9 +169,7 @@
                         }
                     </div>
                 </div>
-
                 <hr class="my-2" />
-
                 <div class="d-flex flex-wrap gap-2" style="max-height: 200px; overflow-y: auto;">
                     @foreach (var c in collections)
                     {
@@ -293,7 +315,7 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card shadow border-primary" style="position: sticky; top: 20px;">
+            <div class="card shadow border-primary" style="position: sticky; top: 90px; max-height: calc(100vh - 110px); overflow-y: auto;">
                 <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
                     <span>@(selectedItem.Id == 0 ? "Новый предмет" : "Редактирование")</span>
                     @if (isSaving)
@@ -321,58 +343,87 @@
 
                         <div class="mb-2">
                             <label class="small text-muted mb-0">Название</label>
-                            <input type="text" class="form-control form-control-sm fw-bold" @bind="selectedItem.Name" @bind:after="AutoSave" />
+                            <input type="text" class="form-control form-control-sm fw-bold"
+                                   @bind="selectedItem.Name" @bind:after="AutoSave" />
                         </div>
                         <div class="mb-2">
                             <label class="small text-muted mb-0">Скин</label>
-                            <input type="text" class="form-control form-control-sm" @bind="selectedItem.SkinName" @bind:after="AutoSave" />
+                            <input type="text" class="form-control form-control-sm"
+                                   @bind="selectedItem.SkinName" @bind:after="AutoSave" />
                         </div>
 
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="small text-muted mb-0">Тип</label>
-                                <InputSelect @bind-Value="selectedItem.Type" class="form-select form-select-sm" @bind:after="AutoSave">
+                                <select @bind="selectedItem.Type" class="form-select form-select-sm" @bind:after="AutoSave">
                                     @foreach (var t in Enum.GetValues(typeof(ItemType)))
                                     {
                                         <option value="@t">@t</option>
                                     }
-                                </InputSelect>
+                                </select>
                             </div>
                             <div class="col-6">
                                 <label class="small text-muted mb-0">Редкость</label>
-                                <InputSelect @bind-Value="selectedItem.Rarity" class="form-select form-select-sm" @bind:after="AutoSave">
+                                <select @bind="selectedItem.Rarity" class="form-select form-select-sm" @bind:after="AutoSave">
                                     @foreach (var r in Enum.GetValues(typeof(ItemRarity)))
                                     {
                                         <option value="@r">@r</option>
                                     }
-                                </InputSelect>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="mb-2">
-                            <label class="small text-muted mb-0">Коллекция</label>
-                            <select class="form-select form-select-sm" @bind="selectedItem.CollectionId" @bind:after="AutoSave">
-                                <option value="1">Без коллекции</option>
-                                @foreach (var c in collections)
+                        <div class="mb-2 position-relative">
+                            <label class="small text-muted mb-0">Коллекция (Поиск)</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control"
+                                       placeholder="Начните вводить название..."
+                                       @bind="collectionSearchQuery"
+                                       @bind:event="oninput"
+                                       @onfocus="() => isCollectionDropdownOpen = true"
+                                       @onfocusout="CloseCollectionDropdownDelayed" />
+
+                                @if (selectedItem.CollectionId > 1)
                                 {
-                                    <option value="@c.Id">@c.Name @(c.IsRemoved ? "(Удалена)" : "")</option>
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="ClearCollectionSelection" title="Сбросить">✕</button>
                                 }
-                            </select>
+                            </div>
+
+                            @if (isCollectionDropdownOpen)
+                            {
+                                <div class="autocomplete-dropdown shadow-sm">
+                                    @if (!FilteredCollections.Any())
+                                    {
+                                        <div class="p-2 text-muted small">Ничего не найдено</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var col in FilteredCollections)
+                                        {
+                                            <div class="autocomplete-item d-flex align-items-center gap-2"
+                                                 @onmousedown="() => SelectCollectionFromSearch(col)">
+                                                @if (!string.IsNullOrEmpty(col.ImageUrl))
+                                                {
+                                                    <img src="@col.ImageUrl" style="width: 20px; height: 20px; object-fit: contain;" />
+                                                }
+                                                <span class="small">@col.Name</span>
+                                                @if (col.IsRemoved)
+                                                {
+                                                    <span class="text-danger small ms-auto">⛔</span>
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+
                             @if (selectedItem.CollectionId > 1)
                             {
-                                var col = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId);
-                                if (col != null)
+                                var current = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId);
+                                if (current != null)
                                 {
-                                    <div class="mt-1 d-flex align-items-center gap-2 small text-muted">
-                                        @if (!string.IsNullOrEmpty(col.ImageUrl))
-                                        {
-                                            <img src="@col.ImageUrl" style="width: 20px;" />
-                                        }
-                                        <span>@col.Name</span>
-                                        @if (col.IsRemoved)
-                                        {
-                                            <span class="text-danger fw-bold">⛔ Removed</span>
-                                        }
+                                    <div class="mt-1 small text-success d-flex align-items-center gap-1">
+                                        <span>Выбрано: <strong>@current.Name</strong></span>
                                     </div>
                                 }
                             }
@@ -380,11 +431,13 @@
 
                         <div class="card bg-light p-2 mb-2 border-0">
                             <div class="form-check form-switch mb-1">
-                                <input type="checkbox" class="form-check-input" id="st" @bind="selectedItem.IsStatTrack" @bind:after="AutoSave" />
+                                <input type="checkbox" class="form-check-input" id="st"
+                                       @bind="selectedItem.IsStatTrack" @bind:after="AutoSave" />
                                 <label class="form-check-label small" for="st">StatTrack™</label>
                             </div>
                             <div class="form-check form-switch">
-                                <input type="checkbox" class="form-check-input" id="pt" @bind="selectedItem.IsPattern" @bind:after="AutoSave" />
+                                <input type="checkbox" class="form-check-input" id="pt"
+                                       @bind="selectedItem.IsPattern" @bind:after="AutoSave" />
                                 <label class="form-check-label small" for="pt">Pattern Based</label>
                             </div>
                         </div>
@@ -432,6 +485,16 @@
     private bool newColIsRemoved = false;
     private GameCollection? editingCol;
 
+    // Autocomplete State
+    private string collectionSearchQuery = "";
+    private bool isCollectionDropdownOpen = false;
+
+    // Фильтрация коллекций для поиска
+    private IEnumerable<GameCollection> FilteredCollections =>
+        string.IsNullOrWhiteSpace(collectionSearchQuery)
+            ? collections.Take(10) // Если пусто - показываем первые 10
+            : collections.Where(c => c.Name.Contains(collectionSearchQuery, StringComparison.OrdinalIgnoreCase));
+
     protected override async Task OnInitializedAsync()
     {
         collections = await ItemService.GetCollectionsAsync();
@@ -447,30 +510,54 @@
         StateHasChanged();
     }
 
-    private void SelectItem(ItemBase item) => selectedItem = item;
-    private void CreateNewItemModel() => selectedItem = new ItemBase { CollectionId = 1, Type = ItemType.Skin, Rarity = ItemRarity.Common };
+    // === Selection Logic ===
+    private void SelectItem(ItemBase item)
+    {
+        selectedItem = item;
+        // Заполняем поиск названием коллекции выбранного предмета
+        var col = collections.FirstOrDefault(c => c.Id == item.CollectionId);
+        collectionSearchQuery = col != null && col.Id > 1 ? col.Name : "";
+    }
 
+    private void CreateNewItemModel()
+    {
+        selectedItem = new ItemBase { CollectionId = 1, Type = ItemType.Skin, Rarity = ItemRarity.Common };
+        collectionSearchQuery = ""; // Очищаем поиск для нового предмета
+    }
+
+    // === Создание нового предмета (Сброс формы) ===
+    private void CreateNewItem()
+    {
+        CreateNewItemModel();
+        isSaving = false;
+    }
+
+    // === AutoSave ===
     private async Task AutoSave()
     {
         if (selectedItem.Id == 0) return;
-        isSaving = true; StateHasChanged();
-        await ItemService.UpdateItemAsync(selectedItem);
-        await Task.Delay(300);
-        isSaving = false; StateHasChanged();
-    }
-    private void CreateNewItem()
-    {
-        selectedItem = new ItemBase
-            {
-            // Задаем дефолтные значения, чтобы форма не была пустой
-                CollectionId = 1, // ID коллекции "Без коллекции" (или первой попавшейся)
-                Type = ItemType.Skin,
-                Rarity = ItemRarity.Common
-            };
 
-        // Если у тебя есть переменная isSaving или подобные, их тоже можно сбросить
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            // Ручное обновление связи для UI
+            var newCol = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId);
+            if (newCol != null) selectedItem.Collection = newCol;
+
+            await ItemService.UpdateItemAsync(selectedItem);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = "Ошибка: " + ex.Message;
+        }
+
+        await Task.Delay(300);
         isSaving = false;
+        StateHasChanged();
     }
+
     private async Task CreateItemManually() { await ItemService.AddItemAsync(selectedItem); await LoadData(); }
     private async Task DeleteItem() { if (selectedItem.Id == 0) return; await ItemService.DeleteItemAsync(selectedItem.Id); CreateNewItemModel(); await LoadData(); }
 
@@ -483,7 +570,33 @@
         }
     }
 
-    // === Collections Logic ===
+    // === Autocomplete Logic ===
+    private async Task SelectCollectionFromSearch(GameCollection col)
+    {
+        selectedItem.CollectionId = col.Id;
+        selectedItem.Collection = col; // Обновляем связь
+        collectionSearchQuery = col.Name; // Обновляем текст в инпуте
+        isCollectionDropdownOpen = false;
+        await AutoSave();
+    }
+
+    private async Task ClearCollectionSelection()
+    {
+        selectedItem.CollectionId = 1; // ID 1 = Без коллекции
+        var defaultCol = collections.FirstOrDefault(c => c.Id == 1);
+        if (defaultCol != null) selectedItem.Collection = defaultCol;
+
+        collectionSearchQuery = "";
+        await AutoSave();
+    }
+
+    private async Task CloseCollectionDropdownDelayed()
+    {
+        await Task.Delay(200); // Задержка, чтобы успел сработать клик
+        isCollectionDropdownOpen = false;
+    }
+
+    // === Collection Manager Logic ===
     private void ToggleCollections() => showCollections = !showCollections;
 
     private void EditCollection(GameCollection c)
@@ -503,15 +616,12 @@
     private async Task SaveCollection()
     {
         if (string.IsNullOrWhiteSpace(newColName)) return;
-
         var c = editingCol ?? new GameCollection();
         c.Name = newColName;
         c.ImageUrl = newColImage;
         c.IsRemoved = newColIsRemoved;
-
         await ItemService.SaveCollectionAsync(c);
         collections = await ItemService.GetCollectionsAsync();
-
         CancelEditCollection();
     }
 
@@ -521,6 +631,7 @@
         catch (Exception ex) { statusMessage = ex.Message; }
     }
 
+    // === Parser Logic ===
     private async Task RunImport() { isBusy = true; currentAction = "import"; try { statusMessage = await ParserService.ImportAllSkinsAsync(); await LoadData(); } catch (Exception ex) { statusMessage = ex.Message; } isBusy = false; }
     private async Task RunParser() { isBusy = true; currentAction = "parse"; try { statusMessage = await ParserService.UpdateAllPricesAsync(); await LoadData(); } catch (Exception ex) { statusMessage = ex.Message; } isBusy = false; }
     private async Task ResetAndLoad() { currentPage = 1; await LoadData(); }
