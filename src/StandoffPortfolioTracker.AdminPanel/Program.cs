@@ -15,6 +15,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 builder.Services.AddScoped<StandoffPortfolioTracker.AdminPanel.Services.ItemService>();
 builder.Services.AddScoped<StandoffPortfolioTracker.AdminPanel.Services.PortfolioService>();
+builder.Services.AddHttpClient<StandoffPortfolioTracker.AdminPanel.Services.PriceParserService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
