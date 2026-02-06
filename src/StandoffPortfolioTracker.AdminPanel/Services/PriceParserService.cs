@@ -2,7 +2,6 @@
 using StandoffPortfolioTracker.Core.Entities;
 using StandoffPortfolioTracker.Infrastructure;
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 
@@ -23,7 +22,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         }
 
         // ==========================================
-        // 1. ИМПОРТ ВСЕХ СКИНОВ (С Созданием ST версий)
+        // 1. ИМПОРТ ВСЕХ СКИНОВ
         // ==========================================
         public async Task<string> ImportAllSkinsAsync()
         {
@@ -46,10 +45,11 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 .ToDictionary(g => g.Key, g => g.First());
 
             using var context = await _factory.CreateDbContextAsync();
-            
-            // Загружаем базу и строим словарь по ЧИСТОМУ ключу (чтобы избежать дублей типа "Name" и "\"Name\"")
-            // Ключ: "name|skinname|stat" (в нижнем регистре)
+
+            // Загружаем базу
             var existingItemsList = await context.ItemBases.ToListAsync();
+
+            // Строим словарь для проверки дублей по смыслу (имя + скин + статтрек)
             var existingItemsDict = existingItemsList
                 .GroupBy(i => GenerateUniqueKey(i.Name, i.SkinName, i.IsStatTrack))
                 .ToDictionary(g => g.Key, g => g.First());
@@ -66,67 +66,73 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 string originalName = nameEntry[0];
                 if (string.IsNullOrWhiteSpace(originalName) || originalName == "sdk") continue;
 
-                // 1. Чистим имя
+                // 1. Анализируем имя (StatTrack или нет)
                 bool isStatTrack = originalName.Contains("StatTrack");
                 string baseNameForInfo = originalName.Replace("StatTrack", "").Trim();
-                
-                // Ищем инфо
+
+                // Ищем инфо в словаре
                 SkinDto? info = null;
                 if (!infoDict.TryGetValue(originalName, out info) && isStatTrack)
                 {
+                    // Если не нашли ST версию, пробуем найти обычную
                     infoDict.TryGetValue(baseNameForInfo, out info);
                 }
+                // Заглушка, если инфо нет
                 if (info == null) info = new SkinDto { FullName = originalName, Type = "unknown", Rarity = "Common" };
 
-                // Парсим чистое имя и скин
+                // 2. Парсим Имя и Скин (Используем новую логику с суффиксами)
                 var (name, skinName) = ParseNameParts(baseNameForInfo);
 
-                // 2. Генерируем УНИКАЛЬНЫЙ КЛЮЧ для проверки дублей
-                // Это самое важное изменение: мы проверяем не по OriginalName, а по смыслу
+                // 3. Генерируем уникальный ключ
                 string uniqueKey = GenerateUniqueKey(name, skinName, isStatTrack);
 
-                // 3. Определяем Тип (улучшенная версия, смотрит и в Имя тоже)
-                var type = ParseType(info.Type, name);
-                var rarity = ParseRarity(info.Rarity);
+                // 4. Определяем Тип и Редкость (исходя из данных сайта)
+                var siteType = ParseType(info.Type, name);
+                var siteRarity = ParseRarity(info.Rarity);
 
-                // 4. Коллекция
-                GameCollection? collection = null;
+                // 5. Работа с Коллекцией
+                GameCollection? siteCollection = null;
                 if (!string.IsNullOrEmpty(info.Collection) && info.Collection != "unknown")
                 {
-                    if (!existingCollections.TryGetValue(info.Collection, out collection))
+                    if (!existingCollections.TryGetValue(info.Collection, out siteCollection))
                     {
-                        collection = new GameCollection { Name = info.Collection };
-                        context.GameCollections.Add(collection);
+                        siteCollection = new GameCollection { Name = info.Collection };
+                        context.GameCollections.Add(siteCollection);
                         await context.SaveChangesAsync();
-                        existingCollections[info.Collection] = collection;
+                        existingCollections[info.Collection] = siteCollection;
                     }
                 }
 
-                // 5. Логика добавления/обновления
+                // 6. Логика добавления или обновления
                 if (existingItemsDict.TryGetValue(uniqueKey, out var existingItem))
                 {
-                    // Предмет уже есть (по чистому имени).
-                    // Обновляем OriginalName только если он стал "лучше" или поменялась картинка
-                    // Но не создаем новый!
                     bool changed = false;
-                    
-                    // Если у нас в базе старое имя без кавычек, а пришло с кавычками (более точное для парсера) - обновим
-                    if (existingItem.OriginalName != originalName && originalName.Contains("\"")) 
-                    { 
-                        existingItem.OriginalName = originalName; 
-                        changed = true; 
-                    }
-                    
-                    if (existingItem.ImageUrl != info.ImageUrl) 
-                    { 
-                        existingItem.ImageUrl = info.ImageUrl; 
-                        changed = true; 
+
+                    // Обновляем "Сырое имя" для парсера цен (если на сайте оно точнее/с кавычками)
+                    if (existingItem.OriginalName != originalName && originalName.Contains("\""))
+                    {
+                        existingItem.OriginalName = originalName;
+                        changed = true;
                     }
 
-                    // Фикс типа (если раньше был Skin, а теперь мы поняли что это Charm)
-                    if (existingItem.Type != type)
+                    // === ИЗМЕНЕНИЕ: ОБНОВЛЯЕМ КАРТИНКУ ТОЛЬКО ЕСЛИ ОНА ПУСТАЯ ===
+                    if (string.IsNullOrEmpty(existingItem.ImageUrl) && !string.IsNullOrEmpty(info.ImageUrl))
                     {
-                        existingItem.Type = type;
+                        existingItem.ImageUrl = info.ImageUrl;
+                        changed = true;
+                    }
+
+                    // Обновляем Тип ТОЛЬКО если сейчас стоит "Guns" (дефолт), а сайт знает точнее
+                    if ((existingItem.Type == StandoffPortfolioTracker.Core.Enums.ItemType.Guns) && siteType != StandoffPortfolioTracker.Core.Enums.ItemType.Guns)
+                    {
+                        existingItem.Type = siteType;
+                        changed = true;
+                    }
+
+                    // Обновляем Коллекцию ТОЛЬКО если сейчас стоит "Без коллекции" (Id=1)
+                    if (existingItem.CollectionId == 1 && siteCollection != null)
+                    {
+                        existingItem.CollectionId = siteCollection.Id;
                         changed = true;
                     }
 
@@ -135,34 +141,34 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 }
                 else
                 {
-                    // Новая запись
+                    // Новая запись (создаем полностью по данным сайта)
                     var newItem = new ItemBase
                     {
                         Name = name,
                         SkinName = skinName,
                         OriginalName = originalName,
                         IsStatTrack = isStatTrack,
-                        Rarity = rarity,
-                        Type = type,
-                        CollectionId = collection?.Id ?? 1,
+                        Rarity = siteRarity,
+                        Type = siteType,
+                        CollectionId = siteCollection?.Id ?? 1,
                         ImageUrl = info.ImageUrl,
                         CurrentMarketPrice = 0
                     };
 
                     context.ItemBases.Add(newItem);
-                    existingItemsDict[uniqueKey] = newItem; // Добавляем в кэш, чтобы следующий дубль отсекся
+                    existingItemsDict[uniqueKey] = newItem; // Добавляем в локальный кэш
                     addedCount++;
                 }
             }
 
             await context.SaveChangesAsync();
-            return $"Готово! Новых: {addedCount}. Обновлено: {updatedCount}. Дубликатов пропущено: {skippedDuplicates}";
+            return $"Импорт завершен! Новых предметов: {addedCount}. Обновлено данных (только пустые поля): {updatedCount}. Пропущено: {skippedDuplicates}";
         }
 
         // ==========================================
         // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
         // ==========================================
-        
+
         private string GenerateUniqueKey(string? name, string? skin, bool st)
         {
             return $"{name?.ToLower().Trim()}|{skin?.ToLower().Trim()}|{st}";
@@ -173,11 +179,19 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             string name = fullName;
             string? skinName = null;
 
-            var match = Regex.Match(fullName, "(.+?)\\s+\"(.+?)\"");
+            // РЕГУЛЯРКА: Захватывает хвост после кавычек (Group 3)
+            // Пример: Sticker "Z9 Project" Gold -> Name: Sticker, Skin: Z9 Project Gold
+            var match = Regex.Match(fullName, "(.+?)\\s+\"(.+?)\"(.*)");
+
             if (match.Success)
             {
                 name = match.Groups[1].Value.Trim();
-                skinName = match.Groups[2].Value.Trim();
+
+                string skinPart = match.Groups[2].Value.Trim();
+                string suffix = match.Groups[3].Value.Trim();
+
+                // Если есть суффикс, добавляем его к названию скина
+                skinName = string.IsNullOrEmpty(suffix) ? skinPart : $"{skinPart} {suffix}";
             }
             else if (fullName.Contains("\""))
             {
@@ -186,41 +200,31 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             return (name, skinName);
         }
 
-
-
-        // Улучшенный парсер типов (смотрит и в название)
         private StandoffPortfolioTracker.Core.Enums.ItemType ParseType(string typeStr, string nameStr)
         {
-            // Объединяем тип и имя для поиска ключевых слов
             string combined = (typeStr + " " + nameStr).ToLower();
 
-            // 1. Сначала проверяем явные типы
             if (combined.Contains("sticker") || combined.Contains("стикер")) return StandoffPortfolioTracker.Core.Enums.ItemType.Sticker;
             if (combined.Contains("charm") || combined.Contains("брелок")) return StandoffPortfolioTracker.Core.Enums.ItemType.Charm;
             if (combined.Contains("gloves") || combined.Contains("перчатки")) return StandoffPortfolioTracker.Core.Enums.ItemType.Glove;
 
-            // 2. Граффити и наборы
             if (combined.Contains("graffiti") || combined.Contains("граффити")) return StandoffPortfolioTracker.Core.Enums.ItemType.Graffiti;
             if (combined.Contains("fragment") || combined.Contains("фрагмент")) return StandoffPortfolioTracker.Core.Enums.ItemType.Fragment;
 
-            // 3. Контейнеры
             if (combined.Contains("container") || combined.Contains("case") || combined.Contains("box") || combined.Contains("pack"))
                 return StandoffPortfolioTracker.Core.Enums.ItemType.Container;
 
-            // 4. Ножи
             if (combined.Contains("knife") || combined.Contains("kukri") || combined.Contains("daggers") || combined.Contains("karambit") || combined.Contains("bayonet") || combined.Contains("jkommando") || combined.Contains("scorpion") || combined.Contains("kunai") || combined.Contains("tanto") || combined.Contains("dual daggers") || combined.Contains("butterfly") || combined.Contains("flip") || combined.Contains("fang") || combined.Contains("stiletto"))
                 return StandoffPortfolioTracker.Core.Enums.ItemType.Knife;
 
-            // 5. Гранаты (обычно скины на гранаты имеют слово Grenade в типе или названии)
             if (combined.Contains("grenade") || combined.Contains("flashbang") || combined.Contains("smoke"))
                 return StandoffPortfolioTracker.Core.Enums.ItemType.Grenade;
 
-            // Если ничего не подошло — считаем это оружием (Guns)
             return StandoffPortfolioTracker.Core.Enums.ItemType.Guns;
         }
 
         // ==========================================
-        // 2. ОБНОВЛЕНИЕ ВСЕХ ЦЕН (Многопоточное)
+        // 2. ОБНОВЛЕНИЕ ВСЕХ ЦЕН
         // ==========================================
         public async Task<string> UpdateAllPricesAsync()
         {
@@ -265,7 +269,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         }
 
         // ==========================================
-        // 3. ОБНОВЛЕНИЕ ПОРТФЕЛЯ (Только купленное)
+        // 3. ОБНОВЛЕНИЕ ПОРТФЕЛЯ
         // ==========================================
         public async Task<string> UpdatePortfolioPricesAsync()
         {
@@ -348,7 +352,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         }
     }
 
-    // DTO классы для десериализации JSON
+    // DTO классы
     public class SkinDto
     {
         [System.Text.Json.Serialization.JsonPropertyName("name")]

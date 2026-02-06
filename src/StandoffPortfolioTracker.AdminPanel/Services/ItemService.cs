@@ -38,8 +38,12 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
 
             var totalCount = await query.CountAsync();
 
+            // ИСПРАВЛЕННАЯ СОРТИРОВКА
             var items = await query
-                .OrderBy(i => i.Name)
+                .OrderByDescending(i => i.Rarity) // 1. Сначала дорогие (Arcane)
+                .ThenBy(i => i.Name)            // 2. Группируем по оружию (Akimbo Uzi)
+                .ThenBy(i => i.SkinName)        // 3. Группируем по скину (Ravage, Skull...)
+                .ThenBy(i => i.IsStatTrack)     // 4. Сначала обычный, следом StatTrack
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync();

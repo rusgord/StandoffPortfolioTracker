@@ -4,6 +4,7 @@
 @using StandoffPortfolioTracker.AdminPanel.Services
 @inject ItemService ItemService
 @inject PriceParserService ParserService
+@inject WikiParserService WikiService
 @rendermode InteractiveServer
 
 <style>
@@ -127,6 +128,40 @@
             {
                 <span class="text-success small fw-bold">@statusMessage</span>
             }
+        </div>
+    </div>
+
+    <div class="card mb-3 border-info">
+        <div class="card-header bg-info text-white py-1">
+            <small>📥 Парсинг с Fandom Wiki (Обновление коллекций)</small>
+        </div>
+        <div class="card-body py-2">
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control" placeholder="Ссылка на страницу (например .../wiki/Project_Pandora)" @bind="wikiUrl" />
+
+                <select class="form-select" @bind="wikiCollectionId" style="max-width: 200px;">
+                    <option value="0">Выберите коллекцию...</option>
+                    @foreach (var c in collections)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+
+                <button class="btn btn-info text-white" @onclick="ParseWiki" disabled="@(isBusy || wikiCollectionId == 0)">
+                    @if (isBusy && currentAction == "wiki")
+                    {
+                        <span class="spinner-border spinner-border-sm"></span>
+                    }
+                    else
+                    {
+                        <span>Запарсить</span>
+                    }
+                </button>
+            </div>
+            <small class="text-muted">
+                * Сначала создайте коллекцию вручную, затем выберите её здесь и вставьте ссылку.
+                Парсер найдет картинку для коллекции и привяжет к ней скины (если они есть в базе).
+            </small>
         </div>
     </div>
 
@@ -485,6 +520,10 @@
     private bool newColIsRemoved = false;
     private GameCollection? editingCol;
 
+
+    private string wikiUrl = "";
+    private int wikiCollectionId = 0;
+
     // Autocomplete State
     private string collectionSearchQuery = "";
     private bool isCollectionDropdownOpen = false;
@@ -629,6 +668,34 @@
     {
         try { await ItemService.DeleteCollectionAsync(id); collections = await ItemService.GetCollectionsAsync(); }
         catch (Exception ex) { statusMessage = ex.Message; }
+    }
+
+    // Wiki Parser
+    private async Task ParseWiki()
+    {
+        if (string.IsNullOrWhiteSpace(wikiUrl) || wikiCollectionId == 0) return;
+
+        // Получаем имя коллекции по ID
+        var targetCollection = collections.FirstOrDefault(c => c.Id == wikiCollectionId);
+        if (targetCollection == null) return;
+
+        isBusy = true;
+        currentAction = "wiki";
+        statusMessage = $"Парсим Вики для коллекции {targetCollection.Name}...";
+
+        try
+        {
+            statusMessage = await WikiService.ParseCollectionFromWikiUrl(wikiUrl, targetCollection.Name);
+            await LoadData(); // Обновляем таблицу
+            collections = await ItemService.GetCollectionsAsync(); // Обновляем список коллекций (вдруг картинка появилась)
+        }
+        catch (Exception ex)
+        {
+            statusMessage = "Ошибка: " + ex.Message;
+        }
+
+        isBusy = false;
+        currentAction = "";
     }
 
     // === Parser Logic ===

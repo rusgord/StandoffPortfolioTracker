@@ -13,9 +13,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
-builder.Services.AddScoped<StandoffPortfolioTracker.AdminPanel.Services.ItemService>();
-builder.Services.AddScoped<StandoffPortfolioTracker.AdminPanel.Services.PortfolioService>();
-builder.Services.AddHttpClient<StandoffPortfolioTracker.AdminPanel.Services.PriceParserService>();
+builder.Services.AddScoped<ItemService>();
+builder.Services.AddScoped<PortfolioService>();
+builder.Services.AddHttpClient<PriceParserService>();
+builder.Services.AddScoped<WikiParserService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
