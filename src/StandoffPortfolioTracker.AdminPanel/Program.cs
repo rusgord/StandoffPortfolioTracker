@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.AdminPanel.Components;
 using StandoffPortfolioTracker.Infrastructure;
 using StandoffPortfolioTracker.AdminPanel.Services;
+using ApexCharts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,8 @@ builder.Services.AddScoped<ItemService>();
 builder.Services.AddScoped<PortfolioService>();
 builder.Services.AddHttpClient<PriceParserService>();
 builder.Services.AddScoped<WikiParserService>();
+
+builder.Services.AddApexCharts();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

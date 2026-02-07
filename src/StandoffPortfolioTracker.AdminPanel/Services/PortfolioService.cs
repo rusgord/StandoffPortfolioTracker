@@ -13,29 +13,64 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             _factory = factory;
         }
 
-        // Получить весь инвентарь для конкретного аккаунта
-        public async Task<List<InventoryItem>> GetInventoryAsync(int accountId)
+        // === 1. Управление портфелями (ЭТО НОВОЕ) ===
+
+        public async Task<List<PortfolioAccount>> GetAccountsAsync()
         {
-            using var context = _factory.CreateDbContext();
+            using var context = await _factory.CreateDbContextAsync();
+            return await context.PortfolioAccounts.ToListAsync();
+        }
+
+        public async Task CreateAccountAsync(string name, string? description = null)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var newAccount = new PortfolioAccount
+            {
+                Name = name,
+                Description = description
+            };
+            context.PortfolioAccounts.Add(newAccount);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAccountAsync(int id)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var account = await context.PortfolioAccounts.FindAsync(id);
+            if (account != null)
+            {
+                // Удаляем предметы этого портфеля (на всякий случай, если каскад не настроен)
+                var items = context.InventoryItems.Where(i => i.PortfolioAccountId == id);
+                context.InventoryItems.RemoveRange(items);
+
+                context.PortfolioAccounts.Remove(account);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        // === 2. Работа с инвентарем (ОБНОВЛЕНО ПОД ID) ===
+
+        public async Task<List<InventoryItem>> GetInventoryAsync(int portfolioId)
+        {
+            using var context = await _factory.CreateDbContextAsync();
             return await context.InventoryItems
-                .Where(i => i.PortfolioAccountId == accountId)
-                .Include(i => i.ItemBase) // Подтягиваем название скина
+                .Include(i => i.ItemBase)
+                .ThenInclude(ib => ib.Collection)
+                .Where(i => i.PortfolioAccountId == portfolioId) // Фильтруем по ID портфеля
                 .OrderByDescending(i => i.PurchaseDate)
                 .ToListAsync();
         }
 
-        // Добавить покупку
         public async Task AddPurchaseAsync(InventoryItem item)
         {
-            using var context = _factory.CreateDbContext();
+            using var context = await _factory.CreateDbContextAsync();
             context.InventoryItems.Add(item);
             await context.SaveChangesAsync();
         }
 
-        // Удалить (если ошибся)
         public async Task DeleteItemAsync(int id)
         {
-            using var context = _factory.CreateDbContext();
+            using var context = await _factory.CreateDbContextAsync();
             var item = await context.InventoryItems.FindAsync(id);
             if (item != null)
             {
