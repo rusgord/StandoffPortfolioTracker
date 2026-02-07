@@ -123,6 +123,16 @@
                         <span>💲 Обновить цены</span>
                     }
                 </button>
+                <button class="btn btn-warning text-dark" @onclick="FixImages" disabled="@isBusy">
+                    @if (isBusy && currentAction == "images")
+                    {
+                        <span class="spinner-border spinner-border-sm"></span>
+                    }
+                    else
+                    {
+                        <span>🖼️ Заменить картинки на PNG (Без фона)</span>
+                    }
+                </button>
             </div>
             @if (!string.IsNullOrEmpty(statusMessage))
             {
@@ -133,12 +143,11 @@
 
     <div class="card mb-3 border-info">
         <div class="card-header bg-info text-white py-1">
-            <small>📥 Парсинг с Fandom Wiki (Обновление коллекций)</small>
+            <small>📥 Парсинг с Fandom Wiki (Через Playwright)</small>
         </div>
         <div class="card-body py-2">
             <div class="input-group input-group-sm">
-                <input type="text" class="form-control" placeholder="Ссылка на страницу (например .../wiki/Project_Pandora)" @bind="wikiUrl" />
-
+                <input type="text" class="form-control" placeholder="Ссылка (например .../wiki/8_Years)" @bind="wikiUrl" />
                 <select class="form-select" @bind="wikiCollectionId" style="max-width: 200px;">
                     <option value="0">Выберите коллекцию...</option>
                     @foreach (var c in collections)
@@ -146,7 +155,6 @@
                         <option value="@c.Id">@c.Name</option>
                     }
                 </select>
-
                 <button class="btn btn-info text-white" @onclick="ParseWiki" disabled="@(isBusy || wikiCollectionId == 0)">
                     @if (isBusy && currentAction == "wiki")
                     {
@@ -154,14 +162,10 @@
                     }
                     else
                     {
-                        <span>Запарсить</span>
+                        <span>🚀 Запарсить</span>
                     }
                 </button>
             </div>
-            <small class="text-muted">
-                * Сначала создайте коллекцию вручную, затем выберите её здесь и вставьте ссылку.
-                Парсер найдет картинку для коллекции и привяжет к ней скины (если они есть в базе).
-            </small>
         </div>
     </div>
 
@@ -184,7 +188,9 @@
                             <input type="text" class="form-control" placeholder="URL картинки" @bind="newColImage" />
                             @if (!string.IsNullOrEmpty(newColImage))
                             {
-                                <span class="input-group-text"><img src="@newColImage" style="width: 20px; height: 20px; object-fit:contain;" /></span>
+                                <span class="input-group-text">
+                                    <img src="@newColImage" referrerpolicy="no-referrer" style="width: 20px; height: 20px; object-fit:contain;" />
+                                </span>
                             }
                         </div>
                     </div>
@@ -213,7 +219,7 @@
                                     @onclick="() => EditCollection(c)" title="Редактировать">
                                 @if (!string.IsNullOrEmpty(c.ImageUrl))
                                 {
-                                    <img src="@c.ImageUrl" class="collection-img-sm" />
+                                    <img src="@c.ImageUrl" referrerpolicy="no-referrer" class="collection-img-sm" />
                                 }
                                 <span>@c.Name</span>
                                 @if (c.IsRemoved)
@@ -286,7 +292,7 @@
                                         <td class="text-center">
                                             @if (!string.IsNullOrEmpty(item.ImageUrl))
                                             {
-                                                <img src="@item.ImageUrl" style="width: 40px; height: 40px; object-fit: contain;" />
+                                                <img src="@item.ImageUrl" referrerpolicy="no-referrer" style="width: 40px; height: 40px; object-fit: contain;" />
                                             }
                                             else
                                             {
@@ -312,7 +318,7 @@
                                                     <span class="badge bg-light text-dark border d-flex align-items-center gap-1 px-1 py-0">
                                                         @if (!string.IsNullOrEmpty(item.Collection.ImageUrl))
                                                         {
-                                                            <img src="@item.Collection.ImageUrl" style="width: 12px;" />
+                                                            <img src="@item.Collection.ImageUrl" referrerpolicy="no-referrer" style="width: 12px;" />
                                                         }
                                                         @item.Collection.Name
                                                         @if (item.Collection.IsRemoved)
@@ -368,7 +374,7 @@
                         <div class="text-center mb-2 position-relative">
                             @if (!string.IsNullOrEmpty(selectedItem.ImageUrl))
                             {
-                                <img src="@selectedItem.ImageUrl" class="img-thumbnail" style="height: 120px; object-fit: contain;" />
+                                <img src="@selectedItem.ImageUrl" referrerpolicy="no-referrer" class="img-thumbnail" style="height: 120px; object-fit: contain;" />
                             }
                             <div class="mt-1">
                                 <input type="text" class="form-control form-control-sm small text-muted" placeholder="Ссылка на фото"
@@ -439,7 +445,7 @@
                                                  @onmousedown="() => SelectCollectionFromSearch(col)">
                                                 @if (!string.IsNullOrEmpty(col.ImageUrl))
                                                 {
-                                                    <img src="@col.ImageUrl" style="width: 20px; height: 20px; object-fit: contain;" />
+                                                    <img src="@col.ImageUrl" referrerpolicy="no-referrer" style="width: 20px; height: 20px; object-fit: contain;" />
                                                 }
                                                 <span class="small">@col.Name</span>
                                                 @if (col.IsRemoved)
@@ -519,7 +525,6 @@
     private string newColImage = "";
     private bool newColIsRemoved = false;
     private GameCollection? editingCol;
-
 
     private string wikiUrl = "";
     private int wikiCollectionId = 0;
@@ -673,21 +678,43 @@
     // Wiki Parser
     private async Task ParseWiki()
     {
+        // Проверка на пустые поля
         if (string.IsNullOrWhiteSpace(wikiUrl) || wikiCollectionId == 0) return;
 
-        // Получаем имя коллекции по ID
         var targetCollection = collections.FirstOrDefault(c => c.Id == wikiCollectionId);
         if (targetCollection == null) return;
 
         isBusy = true;
         currentAction = "wiki";
-        statusMessage = $"Парсим Вики для коллекции {targetCollection.Name}...";
+        statusMessage = $"Парсим Вики для {targetCollection.Name} (Playwright)...";
 
         try
         {
             statusMessage = await WikiService.ParseCollectionFromWikiUrl(wikiUrl, targetCollection.Name);
-            await LoadData(); // Обновляем таблицу
-            collections = await ItemService.GetCollectionsAsync(); // Обновляем список коллекций (вдруг картинка появилась)
+
+            // Обновляем таблицу после парсинга
+            await LoadData();
+            collections = await ItemService.GetCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = "Ошибка: " + ex.Message;
+        }
+
+        isBusy = false;
+        currentAction = "";
+    }
+
+    private async Task FixImages()
+    {
+        isBusy = true;
+        currentAction = "images";
+        statusMessage = "Загружаем красивые картинки...";
+
+        try
+        {
+            statusMessage = await ParserService.UpdateImagesFromApiAsync();
+            await LoadData();
         }
         catch (Exception ex)
         {

@@ -66,9 +66,12 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 string originalName = nameEntry[0];
                 if (string.IsNullOrWhiteSpace(originalName) || originalName == "sdk") continue;
 
-                // 1. Анализируем имя (StatTrack или нет)
-                bool isStatTrack = originalName.Contains("StatTrack");
-                string baseNameForInfo = originalName.Replace("StatTrack", "").Trim();
+                // 1. Анализируем имя (StatTrack или нет) — ТЕПЕРЬ В ЛЮБОМ РЕГИСТРЕ
+                // Ловит: StatTrack, Stattrack, stattrack и т.д.
+                bool isStatTrack = originalName.Contains("StatTrack", StringComparison.OrdinalIgnoreCase);
+
+                // Вырезаем StatTrack из имени, чтобы получить чистое название для поиска
+                string baseNameForInfo = Regex.Replace(originalName, "StatTrack", "", RegexOptions.IgnoreCase).Trim();
 
                 // Ищем инфо в словаре
                 SkinDto? info = null;
@@ -115,7 +118,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                         changed = true;
                     }
 
-                    // === ИЗМЕНЕНИЕ: ОБНОВЛЯЕМ КАРТИНКУ ТОЛЬКО ЕСЛИ ОНА ПУСТАЯ ===
+                    // Обновляем картинку (только если пустая)
                     if (string.IsNullOrEmpty(existingItem.ImageUrl) && !string.IsNullOrEmpty(info.ImageUrl))
                     {
                         existingItem.ImageUrl = info.ImageUrl;
@@ -141,7 +144,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 }
                 else
                 {
-                    // Новая запись (создаем полностью по данным сайта)
+                    // Новая запись
                     var newItem = new ItemBase
                     {
                         Name = name,
@@ -180,7 +183,6 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             string? skinName = null;
 
             // РЕГУЛЯРКА: Захватывает хвост после кавычек (Group 3)
-            // Пример: Sticker "Z9 Project" Gold -> Name: Sticker, Skin: Z9 Project Gold
             var match = Regex.Match(fullName, "(.+?)\\s+\"(.+?)\"(.*)");
 
             if (match.Success)
@@ -339,6 +341,76 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             catch (Exception ex) { Console.WriteLine($"Error: {ex.Message}"); }
 
             return false;
+        }
+
+        // ==========================================
+        // 5. ИСПРАВЛЕНИЕ КАРТИНОК (Замена на PNG без фона)
+        // ==========================================
+        public async Task<string> UpdateImagesFromApiAsync()
+        {
+            var infoUrl = "https://standoff-2.com/skins-new.php?command=getModelInfo";
+
+            List<SkinDto> modelInfos;
+            try
+            {
+                modelInfos = await _httpClient.GetFromJsonAsync<List<SkinDto>>(infoUrl);
+            }
+            catch (Exception ex)
+            {
+                return $"Ошибка соединения с API: {ex.Message}";
+            }
+
+            if (modelInfos == null) return "API не вернуло данных.";
+
+            // Превращаем список в словарь для мгновенного поиска
+            // Ключ: FullName (например "AKR12 «Necromancer»")
+            var infoDict = modelInfos
+                .Where(x => !string.IsNullOrEmpty(x.FullName))
+                .GroupBy(x => x.FullName.Trim().ToLower()) // Группируем, чтобы избежать дублей
+                .ToDictionary(g => g.Key, g => g.First());
+
+            using var context = await _factory.CreateDbContextAsync();
+            var items = await context.ItemBases.ToListAsync();
+
+            int updatedCount = 0;
+
+            foreach (var item in items)
+            {
+                // Формируем имя для поиска, как на сайте
+                // Если OriginalName есть - берем его, иначе собираем из частей
+                string searchName = !string.IsNullOrEmpty(item.OriginalName)
+                    ? item.OriginalName
+                    : $"{item.Name} «{item.SkinName}»".Trim(); // Формат сайта обычно с кавычками
+
+                // Если это StatTrack, сайт может хранить его как "StatTrack AKR..." или просто "AKR..."
+                // Попробуем поискать точное совпадение
+                if (infoDict.TryGetValue(searchName.ToLower(), out var info))
+                {
+                    // Нашли! Проверяем, есть ли картинка
+                    if (!string.IsNullOrEmpty(info.ImageUrl) && item.ImageUrl != info.ImageUrl)
+                    {
+                        item.ImageUrl = info.ImageUrl;
+                        updatedCount++;
+                    }
+                }
+                else
+                {
+                    // Попытка №2: Если не нашли, попробуем без кавычек или в другом формате
+                    // Например, у нас "M9 Bayonet", а там "M9 Bayonet «...»"
+                    var altKey = $"{item.Name} {item.SkinName}".ToLower();
+                    if (infoDict.TryGetValue(altKey, out var info2))
+                    {
+                        if (!string.IsNullOrEmpty(info2.ImageUrl) && item.ImageUrl != info2.ImageUrl)
+                        {
+                            item.ImageUrl = info2.ImageUrl;
+                            updatedCount++;
+                        }
+                    }
+                }
+            }
+
+            await context.SaveChangesAsync();
+            return $"Картинки обновлены! Заменено на PNG без фона: {updatedCount} шт.";
         }
 
         // ==========================================
