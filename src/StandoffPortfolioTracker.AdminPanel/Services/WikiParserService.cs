@@ -117,7 +117,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                     itemsToUpdate.AddRange(try1);
 
                     // === ПОПЫТКА 2: ГРАФФИТИ (Универсальный поиск по вхождению) ===
-                    if (!itemsToUpdate.Any() && names.Weapon.Contains("Graffiti", StringComparison.OrdinalIgnoreCase))
+                    if (!itemsToUpdate.Any() && !string.IsNullOrEmpty(names.Weapon) && names.Weapon.Contains("Graffiti", StringComparison.OrdinalIgnoreCase))
                     {
                         // Берем ВСЕ предметы коллекции, у которых в имени есть Graffiti
                         var graffitiCandidates = await context.ItemBases
@@ -128,7 +128,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
 
                         foreach (var g in graffitiCandidates)
                         {
-                            string dbSkinLower = g.SkinName.ToLower().Trim();
+                            string dbSkinLower = (g.SkinName ?? "").ToLower().Trim();
 
                             // ПРОВЕРКА: Содержит ли одна строка другую?
                             // Пример: "Victory Bubble Packed" содержит "Victory Bubble" -> TRUE

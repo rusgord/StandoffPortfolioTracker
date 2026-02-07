@@ -24,6 +24,9 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         // ==========================================
         // 1. ИМПОРТ ВСЕХ СКИНОВ
         // ==========================================
+        // ==========================================
+        // 1. ИМПОРТ ВСЕХ СКИНОВ (ОБНОВЛЕННЫЙ)
+        // ==========================================
         public async Task<string> ImportAllSkinsAsync()
         {
             var namesUrl = "https://standoff-2.com/skins-new.php?command=getNames";
@@ -49,9 +52,16 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             // Загружаем базу
             var existingItemsList = await context.ItemBases.ToListAsync();
 
-            // Строим словарь для проверки дублей по смыслу (имя + скин + статтрек)
+            // 1. Словарь для поиска по УНИКАЛЬНОМУ КЛЮЧУ (Имя + Скин)
             var existingItemsDict = existingItemsList
                 .GroupBy(i => GenerateUniqueKey(i.Name, i.SkinName, i.IsStatTrack))
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // 2. НОВЫЙ СЛОВАРЬ: Поиск по ORIGINAL NAME (Точное имя с сайта)
+            // Это спасет от дублей Граффити Packed и прочих переименований
+            var existingByOriginalName = existingItemsList
+                .Where(x => !string.IsNullOrEmpty(x.OriginalName))
+                .GroupBy(x => x.OriginalName) // Группируем на случай, если дубли уже есть
                 .ToDictionary(g => g.Key, g => g.First());
 
             var existingCollections = await context.GameCollections.ToDictionaryAsync(c => c.Name, c => c);
@@ -66,34 +76,36 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 string originalName = nameEntry[0];
                 if (string.IsNullOrWhiteSpace(originalName) || originalName == "sdk") continue;
 
-                // 1. Анализируем имя (StatTrack или нет) — ТЕПЕРЬ В ЛЮБОМ РЕГИСТРЕ
-                // Ловит: StatTrack, Stattrack, stattrack и т.д.
-                bool isStatTrack = originalName.Contains("StatTrack", StringComparison.OrdinalIgnoreCase);
+                // ---------------------------------------------------------
+                // ШАГ 1: Попытка найти предмет "в лоб" по OriginalName
+                // ---------------------------------------------------------
+                ItemBase? currentItem = null;
 
-                // Вырезаем StatTrack из имени, чтобы получить чистое название для поиска
+                if (existingByOriginalName.TryGetValue(originalName, out var foundByOrig))
+                {
+                    currentItem = foundByOrig;
+                }
+
+                // Подготовка данных для парсинга (нужны в любом случае для проверки/создания)
+                bool isStatTrack = originalName.Contains("StatTrack", StringComparison.OrdinalIgnoreCase);
                 string baseNameForInfo = Regex.Replace(originalName, "StatTrack", "", RegexOptions.IgnoreCase).Trim();
 
-                // Ищем инфо в словаре
+                // Ищем инфо
                 SkinDto? info = null;
                 if (!infoDict.TryGetValue(originalName, out info) && isStatTrack)
                 {
-                    // Если не нашли ST версию, пробуем найти обычную
                     infoDict.TryGetValue(baseNameForInfo, out info);
                 }
-                // Заглушка, если инфо нет
                 if (info == null) info = new SkinDto { FullName = originalName, Type = "unknown", Rarity = "Common" };
 
-                // 2. Парсим Имя и Скин (Используем новую логику с суффиксами)
+                // Парсим имя и скин
                 var (name, skinName) = ParseNameParts(baseNameForInfo);
 
-                // 3. Генерируем уникальный ключ
-                string uniqueKey = GenerateUniqueKey(name, skinName, isStatTrack);
-
-                // 4. Определяем Тип и Редкость (исходя из данных сайта)
+                // Определяем параметры
                 var siteType = ParseType(info.Type, name);
                 var siteRarity = ParseRarity(info.Rarity);
 
-                // 5. Работа с Коллекцией
+                // Коллекция
                 GameCollection? siteCollection = null;
                 if (!string.IsNullOrEmpty(info.Collection) && info.Collection != "unknown")
                 {
@@ -106,36 +118,51 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                     }
                 }
 
-                // 6. Логика добавления или обновления
-                if (existingItemsDict.TryGetValue(uniqueKey, out var existingItem))
+                // ---------------------------------------------------------
+                // ШАГ 2: Если не нашли по OriginalName, ищем по смыслу (Имя + Скин)
+                // ---------------------------------------------------------
+                if (currentItem == null)
                 {
+                    string uniqueKey = GenerateUniqueKey(name, skinName, isStatTrack);
+                    if (existingItemsDict.TryGetValue(uniqueKey, out var foundByKey))
+                    {
+                        currentItem = foundByKey;
+                    }
+                }
+
+                // ---------------------------------------------------------
+                // ШАГ 3: Логика Обновления или Создания
+                // ---------------------------------------------------------
+                if (currentItem != null)
+                {
+                    // === ПРЕДМЕТ СУЩЕСТВУЕТ (Обновляем только если что-то не так) ===
                     bool changed = false;
 
-                    // Обновляем "Сырое имя" для парсера цен (если на сайте оно точнее/с кавычками)
-                    if (existingItem.OriginalName != originalName && originalName.Contains("\""))
+                    // Обновляем OriginalName, если он был пустой или изменился (для привязки)
+                    if (currentItem.OriginalName != originalName)
                     {
-                        existingItem.OriginalName = originalName;
+                        currentItem.OriginalName = originalName;
                         changed = true;
                     }
 
-                    // Обновляем картинку (только если пустая)
-                    if (string.IsNullOrEmpty(existingItem.ImageUrl) && !string.IsNullOrEmpty(info.ImageUrl))
+                    // Обновляем картинку (если пустая или изменилась)
+                    if (!string.IsNullOrEmpty(info.ImageUrl) && (string.IsNullOrEmpty(currentItem.ImageUrl) || currentItem.ImageUrl != info.ImageUrl))
                     {
-                        existingItem.ImageUrl = info.ImageUrl;
+                        currentItem.ImageUrl = info.ImageUrl;
                         changed = true;
                     }
 
-                    // Обновляем Тип ТОЛЬКО если сейчас стоит "Guns" (дефолт), а сайт знает точнее
-                    if ((existingItem.Type == StandoffPortfolioTracker.Core.Enums.ItemType.Guns) && siteType != StandoffPortfolioTracker.Core.Enums.ItemType.Guns)
+                    // Обновляем Тип (если стоит дефолтный Guns, а мы узнали точнее)
+                    if (currentItem.Type == StandoffPortfolioTracker.Core.Enums.ItemType.Guns && siteType != StandoffPortfolioTracker.Core.Enums.ItemType.Guns)
                     {
-                        existingItem.Type = siteType;
+                        currentItem.Type = siteType;
                         changed = true;
                     }
 
-                    // Обновляем Коллекцию ТОЛЬКО если сейчас стоит "Без коллекции" (Id=1)
-                    if (existingItem.CollectionId == 1 && siteCollection != null)
+                    // Обновляем Коллекцию (если она есть на сайте, а у нас нет)
+                    if (currentItem.CollectionId == 1 && siteCollection != null)
                     {
-                        existingItem.CollectionId = siteCollection.Id;
+                        currentItem.CollectionId = siteCollection.Id;
                         changed = true;
                     }
 
@@ -144,12 +171,12 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 }
                 else
                 {
-                    // Новая запись
+                    // === НОВЫЙ ПРЕДМЕТ ===
                     var newItem = new ItemBase
                     {
                         Name = name,
                         SkinName = skinName,
-                        OriginalName = originalName,
+                        OriginalName = originalName, // Важно сохранить для будущих проверок
                         IsStatTrack = isStatTrack,
                         Rarity = siteRarity,
                         Type = siteType,
@@ -159,13 +186,52 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                     };
 
                     context.ItemBases.Add(newItem);
-                    existingItemsDict[uniqueKey] = newItem; // Добавляем в локальный кэш
+
+                    // Добавляем в кэши, чтобы в этом же цикле не создать дубль
+                    string uniqueKey = GenerateUniqueKey(name, skinName, isStatTrack);
+                    existingItemsDict[uniqueKey] = newItem;
+                    existingByOriginalName[originalName] = newItem;
+
                     addedCount++;
                 }
             }
 
             await context.SaveChangesAsync();
-            return $"Импорт завершен! Новых предметов: {addedCount}. Обновлено данных (только пустые поля): {updatedCount}. Пропущено: {skippedDuplicates}";
+            return $"Импорт завершен! Новых: {addedCount}. Обновлено: {updatedCount}. Пропущено: {skippedDuplicates}";
+        }
+
+
+        // ==========================================
+        // 🛠 ДИАГНОСТИКА: Сохранить ответ API в файлы
+        // ==========================================
+        public async Task<string> DebugDownloadApiDataAsync()
+        {
+            try
+            {
+                var namesUrl = "https://standoff-2.com/skins-new.php?command=getNames";
+                var infoUrl = "https://standoff-2.com/skins-new.php?command=getModelInfo";
+
+                // Скачиваем сырые строки JSON
+                var namesJson = await _httpClient.GetStringAsync(namesUrl);
+                var infoJson = await _httpClient.GetStringAsync(infoUrl);
+
+                // Путь к файлам (сохраним в папку запуска приложения)
+                string basePath = AppDomain.CurrentDomain.BaseDirectory;
+                string namesPath = Path.Combine(basePath, "debug_names.json");
+                string infoPath = Path.Combine(basePath, "debug_info.json");
+
+                await File.WriteAllTextAsync(namesPath, namesJson);
+                await File.WriteAllTextAsync(infoPath, infoJson);
+
+                // Проверка наличия "Winter Tale" в скачанном
+                bool containsNewCase = namesJson.Contains("Winter Tale", StringComparison.OrdinalIgnoreCase);
+
+                return $"Данные сохранены в:\n{namesPath}\n\nНайдено ли 'Winter Tale': {(containsNewCase ? "✅ ДА" : "❌ НЕТ")}";
+            }
+            catch (Exception ex)
+            {
+                return $"Ошибка диагностики: {ex.Message}";
+            }
         }
 
         // ==========================================
