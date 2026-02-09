@@ -7,7 +7,7 @@
 
 <div class="nav-scrollable">
     <nav class="flex-column">
-        
+
         <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <i class="bi bi-speedometer2"></i> Dashboard
@@ -24,7 +24,7 @@
 
         <div class="nav-item">
             <NavLink class="nav-link" href="market">
-                <i class="bi bi-shop"></i> 
+                <i class="bi bi-shop"></i>
                 <span class="flex-grow-1">Рынок</span>
                 <span class="badge-premium">PRO</span>
             </NavLink>
@@ -39,11 +39,19 @@
         <AuthorizeView Roles="Admin">
             <Authorized>
                 <div class="nav-divider">ADMIN PANEL</div>
+
                 <div class="nav-item">
                     <NavLink class="nav-link" href="market-editor">
                         <i class="bi bi-database-gear"></i> Редактор БД
                     </NavLink>
                 </div>
+
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="admin/users">
+                        <i class="bi bi-people-fill"></i> Пользователи
+                    </NavLink>
+                </div>
+
             </Authorized>
         </AuthorizeView>
 

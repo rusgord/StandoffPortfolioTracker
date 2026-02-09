@@ -42,8 +42,14 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
             public bool RememberMe { get; set; }
         }
 
-        public async Task OnGetAsync(string returnUrl = null)
+        public async Task<IActionResult> OnGetAsync(string returnUrl = null)
         {
+            // 🔥 ФИКС: Если уже вошел — не пускаем на страницу входа
+            if (User.Identity.IsAuthenticated)
+            {
+                return LocalRedirect("~/"); // Или "~/dashboard", как тебе удобнее
+            }
+
             if (!string.IsNullOrEmpty(ErrorMessage))
             {
                 ModelState.AddModelError(string.Empty, ErrorMessage);
@@ -51,12 +57,13 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
 
             returnUrl ??= Url.Content("~/");
 
-            // Clear the existing external cookie to ensure a clean login process
+            // Очищаем куки внешней авторизации, чтобы не было конфликтов
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
             ReturnUrl = returnUrl;
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)

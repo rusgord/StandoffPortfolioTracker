@@ -52,10 +52,17 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
             public string ConfirmPassword { get; set; }
         }
 
-        public async Task OnGetAsync(string returnUrl = null)
+        public async Task<IActionResult> OnGetAsync(string returnUrl = null)
         {
+            // 🔥 ФИКС: Если уже вошел — регистрация не нужна
+            if (User.Identity.IsAuthenticated)
+            {
+                return LocalRedirect("~/");
+            }
+
             ReturnUrl = returnUrl;
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)

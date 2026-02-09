@@ -9,6 +9,7 @@ using ApexCharts;
 using StandoffPortfolioTracker.Core.Entities;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authentication;
+using StandoffPortfolioTracker.Areas.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,8 +27,11 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
-    options.Password.RequireDigit = false; // Для удобства тестов
-    options.Password.RequiredLength = 4;
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
 })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
@@ -51,6 +55,8 @@ builder.Services.AddScoped<WikiParserService>();
 builder.Services.AddScoped<BillingService>();
 builder.Services.AddApexCharts();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<AdminUserService>();
+builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<ApplicationUser>>();
 builder.Services.AddSingleton<GlobalNotificationService>();
 builder.Services.AddHostedService<DonationWorker>();
 

@@ -1,0 +1,91 @@
+﻿@page "/admin/users"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.AdminPanel.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject UserManager<ApplicationUser> UserManager
+@inject AdminUserService AdminService
+@inject ToastService ToastService
+@rendermode InteractiveServer
+
+<div class="container mt-4">
+    <h3>Управление пользователями</h3>
+
+    <div class="card shadow-sm mt-3">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr>
+                                <td>
+                                    <div>@user.Email</div>
+                                    <small class="text-muted">ID: @user.Id</small>
+                                </td>
+                                <td>
+                                    @if (user.LockoutEnd != null && user.LockoutEnd > DateTimeOffset.UtcNow)
+                                    {
+                                        <span class="badge bg-danger">⛔ Забанен</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Активен</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.LockoutEnd != null && user.LockoutEnd > DateTimeOffset.UtcNow)
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="() => Unban(user.Id)">Разбанить</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-danger" @onclick="() => Ban(user.Id)">Бан (Кик)</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ApplicationUser> users = new();
+
+    protected override void OnInitialized()
+    {
+        // В реальном проекте лучше использовать пагинацию!
+        users = UserManager.Users.ToList();
+    }
+
+    private async Task Ban(string userId)
+    {
+        var result = await AdminService.BanUserAsync(userId);
+        if (result.Success)
+        {
+            ToastService.ShowToast(result.Message, ToastLevel.Success);
+            users = UserManager.Users.ToList(); // Обновляем список
+        }
+    }
+
+    private async Task Unban(string userId)
+    {
+        var result = await AdminService.UnbanUserAsync(userId);
+        if (result.Success)
+        {
+            ToastService.ShowToast(result.Message, ToastLevel.Success);
+            users = UserManager.Users.ToList();
+        }
+    }
+}
