@@ -1,0 +1,223 @@
+﻿/* =========================================
+   1. Глобальные сбросы и шрифты
+========================================= */
+html, body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    /* Убираем стандартный отступ снизу, который был в шаблоне */
+    margin-bottom: 0 !important;
+}
+
+a {
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+/* =========================================
+   2. Стили для Входа и Регистрации (Auth)
+   Темная тема с "золотыми" и "синими" акцентами
+========================================= */
+
+/* Переменные для удобства */
+:root {
+    --auth-bg-dark: #0f172a; /* Темно-синий фон */
+    --auth-bg-light: #1e293b; /* Чуть светлее */
+    --auth-accent-color: #FFD700; /* Золото (Standoff Gold) */
+    --auth-primary-grad: linear-gradient(135deg, #4e73df 0%, #224abe 100%); /* Синий градиент */
+}
+
+/* 2.1. Контейнер на весь экран */
+.auth-container {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    /* Темный фон с градиентом */
+    background: linear-gradient(135deg, var(--auth-bg-dark) 0%, var(--auth-bg-light) 100%);
+    /* Добавляем легкую текстуру (точки), чтобы не было скучно */
+    background-image: radial-gradient(at 10% 10%, rgba(78, 115, 223, 0.15) 0, transparent 50%), radial-gradient(at 90% 90%, rgba(255, 215, 0, 0.05) 0, transparent 50%);
+}
+
+/* 2.2. Карточка (Белая панель) */
+.auth-card {
+    width: 100%;
+    max-width: 420px; /* Оптимальная ширина */
+    background: #ffffff;
+    border-radius: 20px; /* Скругленные углы */
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), /* Глубокая тень */
+    0 0 0 1px rgba(255, 255, 255, 0.1); /* Тонкая обводка */
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+}
+
+/* 2.3. Шапка карточки */
+.auth-header {
+    padding: 40px 30px 20px;
+    text-align: center;
+}
+
+/* Иконка в кружочке */
+.auth-icon-wrapper {
+    width: 70px;
+    height: 70px;
+    background: var(--auth-primary-grad);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 10px 20px rgba(78, 115, 223, 0.3);
+    font-size: 32px;
+    color: white;
+    user-select: none;
+}
+
+.auth-title {
+    font-weight: 800;
+    color: #1a202c;
+    margin-bottom: 8px;
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+}
+
+.auth-subtitle {
+    color: #718096;
+    font-size: 0.95rem;
+}
+
+/* 2.4. Тело формы */
+.auth-body {
+    padding: 10px 35px 40px;
+}
+
+/* Поля ввода (Floating Labels из Bootstrap) */
+.form-floating > .form-control {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding-left: 15px;
+    height: 50px;
+    background-color: #f8fafc;
+}
+
+    .form-floating > .form-control:focus {
+        border-color: #4e73df;
+        background-color: #fff;
+        box-shadow: 0 0 0 4px rgba(78, 115, 223, 0.15); /* Подсветка при клике */
+        outline: none;
+    }
+
+.form-floating > label {
+    padding-left: 15px;
+    color: #a0aec0;
+}
+
+/* 2.5. Главная кнопка (Войти/Регистрация) */
+.btn-auth-primary {
+    width: 100%;
+    padding: 12px;
+    background: var(--auth-primary-grad);
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+    .btn-auth-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(78, 115, 223, 0.4);
+        color: white;
+    }
+
+    .btn-auth-primary:active {
+        transform: translateY(0);
+    }
+
+/* 2.6. Разделитель "ИЛИ" */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 25px 0;
+    color: #a0aec0;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+    .auth-divider::before,
+    .auth-divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .auth-divider:not(:empty)::before {
+        margin-right: .75em;
+    }
+
+    .auth-divider:not(:empty)::after {
+        margin-left: .75em;
+    }
+
+/* 2.7. Кнопка Google */
+.btn-google {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+    .btn-google:hover {
+        background: #f7fafc;
+        border-color: #cbd5e0;
+        transform: translateY(-1px);
+    }
+
+/* 2.8. Нижние ссылки */
+.auth-footer-links {
+    text-align: center;
+    margin-top: 25px;
+    font-size: 0.9rem;
+    color: #718096;
+}
+
+.auth-link {
+    color: #4e73df;
+    font-weight: 700;
+}
+
+    .auth-link:hover {
+        color: #224abe;
+        text-decoration: underline;
+    }
+
+/* Адаптив для телефонов */
+@media (max-width: 576px) {
+    .auth-card {
+        border-radius: 0; /* На мобилках можно без скругления, или поменьше */
+        box-shadow: none;
+    }
+
+    .auth-container {
+        padding: 0;
+        background: white; /* На мобилке просто белый фон */
+    }
+}

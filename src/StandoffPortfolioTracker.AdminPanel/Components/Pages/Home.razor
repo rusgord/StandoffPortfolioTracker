@@ -1,255 +1,293 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Authorization
 @using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.Core.Enums
 @using StandoffPortfolioTracker.AdminPanel.Services
 @using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
 @inject PortfolioService PortfolioService
 @inject IDbContextFactory<StandoffPortfolioTracker.Infrastructure.AppDbContext> DbFactory
 @rendermode InteractiveServer
 
-<PageTitle>Главная | Standoff Tracker</PageTitle>
+<PageTitle>Dashboard | Standoff Tracker</PageTitle>
 
-<div class="container-fluid p-0">
-    <div class="row mb-4 align-items-center">
-        <div class="col">
-            <h1 class="h3 mb-0 text-gray-800">📊 Дашборд Инвестора</h1>
-            <p class="text-muted small mb-0">Обзор основного портфеля</p>
-        </div>
-        <div class="col-auto">
-            <a href="portfolio" class="btn btn-sm btn-primary shadow-sm">
-                ➕ Перейти в портфель
-            </a>
-        </div>
+<style>
+    .border-left-primary {
+        border-left: 4px solid #4e73df !important;
+    }
+
+    .border-left-success {
+        border-left: 4px solid #1cc88a !important;
+    }
+
+    .border-left-info {
+        border-left: 4px solid #36b9cc !important;
+    }
+
+    .border-left-warning {
+        border-left: 4px solid #f6c23e !important;
+    }
+
+    .border-left-danger {
+        border-left: 4px solid #e74a3b !important;
+    }
+
+    .card-stat-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+    }
+</style>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
+        <div class="spinner-border text-primary" role="status"></div>
     </div>
-
-    <div class="row">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2 border-primary border-3 border-top-0 border-bottom-0 border-end-0">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Вложено средств</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@totalInvested.ToString("N0") G</div>
-                        </div>
-                        <div class="col-auto"><span class="fs-2">💰</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow h-100 py-2 border-info border-3 border-top-0 border-bottom-0 border-end-0">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Стоимость (чистыми)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@currentValue.ToString("N0") G</div>
-                        </div>
-                        <div class="col-auto"><span class="fs-2">🏦</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow h-100 py-2 @(totalProfit >= 0 ? "border-success" : "border-danger") border-3 border-top-0 border-bottom-0 border-end-0">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold @(totalProfit >= 0 ? "text-success" : "text-danger") text-uppercase mb-1">Чистый Профит</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@(totalProfit > 0 ? "+" : "")@totalProfit.ToString("N0") G</div>
-                        </div>
-                        <div class="col-auto"><span class="fs-2">📈</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow h-100 py-2 border-warning border-3 border-top-0 border-bottom-0 border-end-0">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">ROI (Окупаемость)</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@roi.ToString("N1")%</div>
-                        </div>
-                        <div class="col-auto"><span class="fs-2">🚀</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+}
+else if (!hasPortfolios)
+{
+    <div class="text-center py-5 mt-5">
+        <div class="mb-3 display-1">📊</div>
+        <h2 class="text-gray-800">Empty Dashboard</h2>
+        <p class="text-muted">Create your first portfolio to start tracking.</p>
+        <a href="portfolio" class="btn btn-primary mt-3">🚀 Create Portfolio</a>
     </div>
+}
+else
+{
+    <div class="container-fluid p-0">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+                <p class="text-muted small mb-0">Overview of your investments</p>
+            </div>
 
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">📉 Динамика стоимости портфеля (30 дней)</h6>
-                </div>
-                <div class="card-body">
-                    @if (chartData.Any())
+            <div class="d-flex align-items-center gap-2">
+                <select class="form-select form-select-sm fw-bold border-primary"
+                        style="width: 200px;"
+                        @bind="selectedPortfolioId"
+                        @bind:after="ReloadData">
+                    <option value="0">🌍 All Portfolios</option>
+                    @foreach (var p in availablePortfolios)
                     {
-                        <ApexChart TItem="PortfolioHistoryPoint"
-                                   Title=""
-                                   Options="chartOptions"
-                                   Height="350">
-
-                            <ApexPointSeries TItem="PortfolioHistoryPoint"
-                                             Items="chartData"
-                                             Name="Стоимость (G)"
-                                             SeriesType="SeriesType.Area"
-                                             XValue="@(e => e.Date.ToString("dd.MM"))"
-                                             YValue="@(e => (decimal)e.Value)" />
-                        </ApexChart>
+                        <option value="@p.Id">💼 @p.Name</option>
                     }
-                    else
-                    {
-                        <div class="text-center py-5 text-muted">
-                            Недостаточно исторических данных для построения графика.
-                            <br />
-                            <small>Обновите цены несколько раз в разные дни, чтобы появилась история.</small>
-                        </div>
-                    }
-                </div>
+                </select>
+                <a href="portfolio" class="btn btn-sm btn-primary shadow-sm">Manage Items</a>
             </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-success">💎 Лучшие активы (Топ 3)</h6>
-                </div>
-                <div class="card-body">
-                    @if (topItems.Any())
-                    {
-                        @foreach (var item in topItems)
-                        {
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div class="d-flex align-items-center gap-3">
-                                    <div style="width: 50px; height: 50px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
-                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                        {
-                                            <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%;" referrerpolicy="no-referrer" />
-                                        }
-                                        else
-                                        {
-                                            <span>?</span>
-                                        }
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold">
-                                            @if (item.IsStatTrack)
-                                            {
-                                                <span class="badge bg-warning text-dark me-1" style="font-size: 0.6em;">ST</span>
-                                            }
-                                            @if (item.IsPattern)
-                                            {
-                                                <span class="badge bg-info text-white me-1" style="font-size: 0.6em;">P</span>
-                                            }
-                                            @item.Name
-                                        </div>
-                                        <div class="text-muted small">@item.Skin</div>
-                                        <div class="small text-success fw-bold">Профит: +@item.Profit.ToString("N0") G</div>
-                                    </div>
-                                </div>
-                                <span class="badge bg-success rounded-pill fs-6">+@item.Roi.ToString("N0")%</span>
+        <div class="row">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="card-stat-title text-primary mb-1">Total Invested</div>
+                                <div class="h5 mb-0 font-weight-bold text-dark">@totalInvested.ToString("N0") G</div>
                             </div>
-                            @if (item != topItems.Last())
+                            <div class="col-auto"><span class="stat-icon">💰</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="card-stat-title text-info mb-1">Value (Net -20%)</div>
+                                <div class="h5 mb-0 font-weight-bold text-dark">@currentValue.ToString("N0") G</div>
+                            </div>
+                            <div class="col-auto"><span class="stat-icon">🏦</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card @(totalProfit >= 0 ? "border-left-success" : "border-left-danger") shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="card-stat-title @(totalProfit >= 0 ? "text-success" : "text-danger") mb-1">Net Profit</div>
+                                <div class="h5 mb-0 font-weight-bold text-dark">
+                                    @(totalProfit > 0 ? "+" : "")@totalProfit.ToString("N0") G
+                                </div>
+                            </div>
+                            <div class="col-auto"><span class="stat-icon">📈</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="card-stat-title text-warning mb-1">ROI</div>
+                                <div class="h5 mb-0 font-weight-bold text-dark">@roi.ToString("N1")%</div>
+                            </div>
+                            <div class="col-auto"><span class="stat-icon">🚀</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">📉 Portfolio Growth (30 Days)</h6>
+                    </div>
+                    <div class="card-body">
+                        @if (chartData.Any())
+                        {
+                            <ApexChart TItem="PortfolioHistoryPoint" Title="" Options="chartOptions" Height="300">
+                                <ApexPointSeries TItem="PortfolioHistoryPoint"
+                                                 Items="chartData"
+                                                 Name="Value"
+                                                 SeriesType="SeriesType.Area"
+                                                 XValue="@(e => e.Date.ToString("dd.MM"))"
+                                                 YValue="@(e => (decimal)e.Value)" />
+                            </ApexChart>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5 text-muted">
+                                Not enough historical data. Check back tomorrow!
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-success">💎 Best Performing Assets</h6>
+                    </div>
+                    <div class="card-body">
+                        @if (topItems.Any())
+                        {
+                            @foreach (var item in topItems)
                             {
-                                <hr class="my-1" />
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div style="width: 45px; height: 45px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
+                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                            {
+                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%;" referrerpolicy="no-referrer" />
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">
+                                                @item.Name
+                                                <span class="badge bg-secondary ms-1" style="font-size:0.65em">x@(item.Quantity)</span>
+                                            </div>
+                                            <div class="text-muted small">@item.Skin</div>
+                                            <div class="small text-success fw-bold">Profit: +@item.TotalProfit.ToString("N0") G</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-success rounded-pill fs-6">+@item.Roi.ToString("N0")%</span>
+                                </div>
+                                @if (item != topItems.Last())
+                                {
+                                    <hr class="my-2" />
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        <p class="text-muted">Нет данных</p>
-                    }
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-danger">🔻 Худшие активы (Топ 3)</h6>
-                </div>
-                <div class="card-body">
-                    @if (worstItems.Any())
-                    {
-                        @foreach (var item in worstItems)
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-danger">🔻 Underperforming Assets</h6>
+                    </div>
+                    <div class="card-body">
+                        @if (worstItems.Any())
                         {
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div class="d-flex align-items-center gap-3">
-                                    <div style="width: 50px; height: 50px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
-                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                        {
-                                            <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%;" referrerpolicy="no-referrer" />
-                                        }
-                                        else
-                                        {
-                                            <span>?</span>
-                                        }
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold">
-                                            @if (item.IsStatTrack)
-                                            {
-                                                <span class="badge bg-warning text-dark me-1" style="font-size: 0.6em;">ST</span>
-                                            }
-                                            @if (item.IsPattern)
-                                            {
-                                                <span class="badge bg-info text-white me-1" style="font-size: 0.6em;">P</span>
-                                            }
-                                            @item.Name
-                                        </div>
-                                        <div class="text-muted small">@item.Skin</div>
-                                        <div class="small text-danger fw-bold">Убыток: @item.Profit.ToString("N0") G</div>
-                                    </div>
-                                </div>
-                                <span class="badge bg-danger rounded-pill fs-6">@item.Roi.ToString("N0")%</span>
-                            </div>
-                            @if (item != worstItems.Last())
+                            @foreach (var item in worstItems)
                             {
-                                <hr class="my-1" />
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div style="width: 45px; height: 45px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
+                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                            {
+                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%;" referrerpolicy="no-referrer" />
+                                            }
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">
+                                                @item.Name
+                                                <span class="badge bg-secondary ms-1" style="font-size:0.65em">x@(item.Quantity)</span>
+                                            </div>
+                                            <div class="text-muted small">@item.Skin</div>
+                                            <div class="small text-danger fw-bold">Loss: @item.TotalProfit.ToString("N0") G</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-danger rounded-pill fs-6">@item.Roi.ToString("N0")%</span>
+                                </div>
+                                @if (item != worstItems.Last())
+                                {
+                                    <hr class="my-2" />
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        <p class="text-muted">Нет убыточных позиций! 🎉</p>
-                    }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">All your items are profitable! 🎉</p>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+}
 
 @code {
-    // Данные для карточек
-    private decimal totalInvested = 0;
-    private decimal currentValue = 0;
-    private decimal totalProfit = 0;
-    private decimal roi = 0;
+    // === Variables ===
+    private bool isLoading = true;
+    private bool hasPortfolios = false;
+    private int selectedPortfolioId = 0; // 0 = All
 
-    // Класс для списков
-    class AssetStat
+    private List<PortfolioAccount> availablePortfolios = new();
+    private List<InventoryItem> allInventory = new();
+
+    // Stats
+    private decimal totalInvested;
+    private decimal currentValue;
+    private decimal totalProfit;
+    private decimal roi;
+
+    // View Models
+    class StackedAssetStat
     {
         public string Name { get; set; }
         public string Skin { get; set; }
         public string ImageUrl { get; set; }
-        public decimal Profit { get; set; }
+        public int Quantity { get; set; }
+        public decimal TotalProfit { get; set; }
         public decimal Roi { get; set; }
-
-        // 👇 Добавлены новые поля
-        public bool IsStatTrack { get; set; }
-        public bool IsPattern { get; set; }
     }
+    private List<StackedAssetStat> topItems = new();
+    private List<StackedAssetStat> worstItems = new();
 
-    private List<AssetStat> topItems = new();
-    private List<AssetStat> worstItems = new();
-
-    // Данные для графика
+    // Chart
     public class PortfolioHistoryPoint { public DateTime Date { get; set; } public decimal Value { get; set; } }
     private List<PortfolioHistoryPoint> chartData = new();
     private ApexChartOptions<PortfolioHistoryPoint> chartOptions = new();
@@ -257,108 +295,193 @@
     protected override async Task OnInitializedAsync()
     {
         SetupChart();
+        availablePortfolios = await PortfolioService.GetAccountsAsync();
 
-        var inventory = await PortfolioService.GetInventoryAsync(1); // TODO: Сделать выбор портфеля
-
-        if (inventory.Any())
+        if (availablePortfolios.Any())
         {
-            // === РАСЧЕТ КАРТОЧЕК ===
-            totalInvested = inventory.Sum(i => i.PurchasePrice * i.Quantity);
-            currentValue = inventory.Sum(i => (i.ItemBase?.CurrentMarketPrice ?? 0) * 0.8m * i.Quantity);
-            totalProfit = currentValue - totalInvested;
-            roi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-
-            // === РАСЧЕТ СПИСКОВ ===
-            var stats = inventory.Select(i =>
-            {
-                var itemInvest = i.PurchasePrice * i.Quantity;
-                var itemValue = (i.ItemBase?.CurrentMarketPrice ?? 0) * 0.8m * i.Quantity;
-                var itemProfit = itemValue - itemInvest;
-                var itemRoi = itemInvest > 0 ? (itemProfit / itemInvest) * 100 : 0;
-
-                return new AssetStat
-                    {
-                        Name = i.ItemBase?.Name ?? "?",
-                        Skin = i.ItemBase?.SkinName ?? "",
-                        ImageUrl = i.ItemBase?.ImageUrl,
-                        Profit = itemProfit,
-                        Roi = itemRoi,
-
-                    // 👇 Заполняем данные о ST/Pattern
-                        IsStatTrack = i.ItemBase?.IsStatTrack ?? false,
-                        IsPattern = i.ItemBase?.IsPattern ?? false
-                    };
-            }).ToList();
-
-            topItems = stats.OrderByDescending(s => s.Profit).Take(3).ToList();
-            worstItems = stats.Where(s => s.Profit < 0).OrderBy(s => s.Profit).Take(3).ToList();
-
-            await LoadChartData(inventory);
+            hasPortfolios = true;
+            await ReloadData();
         }
+        else
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ReloadData()
+    {
+        isLoading = true;
+        allInventory.Clear();
+
+        // 1. Load Inventory based on selection
+        if (selectedPortfolioId == 0)
+        {
+            // Load ALL portfolios
+            foreach (var p in availablePortfolios)
+            {
+                var pItems = await PortfolioService.GetInventoryAsync(p.Id);
+                allInventory.AddRange(pItems);
+            }
+        }
+        else
+        {
+            // Load specific
+            allInventory = await PortfolioService.GetInventoryAsync(selectedPortfolioId);
+        }
+
+        if (allInventory.Any())
+        {
+            CalculateStats();
+            await LoadChartData();
+        }
+        else
+        {
+            ResetStats();
+        }
+
+        isLoading = false;
+    }
+
+    private void CalculateStats()
+    {
+        // 1. Global Totals
+        totalInvested = allInventory.Sum(i => i.PurchasePrice * i.Quantity);
+
+        // Base value + Attachments (if your item model has them loaded, assuming yes from previous steps)
+        // Here assuming ItemBase.CurrentMarketPrice is updated
+        currentValue = allInventory.Sum(i => CalculateItemNetValue(i) * i.Quantity);
+
+        totalProfit = currentValue - totalInvested;
+
+        // ROI Fix: If invested is 0 but profit > 0 (free item), count as 100% gain effectively
+        if (totalInvested > 0)
+            roi = (totalProfit / totalInvested) * 100;
+        else if (totalProfit > 0)
+            roi = 100; // or technically infinity
+        else
+            roi = 0;
+
+        // 2. Grouping/Stacking Logic for Lists
+        var groupedStats = allInventory
+            .Where(i => i.ItemBase != null)
+            .GroupBy(i => i.ItemBaseId) // Group by Item Type
+            .Select(g =>
+            {
+                var first = g.First();
+                var qty = g.Sum(x => x.Quantity);
+                var invested = g.Sum(x => x.PurchasePrice * x.Quantity);
+
+                // Calculate current net value for the whole stack
+                var currentNet = g.Sum(x => CalculateItemNetValue(x) * x.Quantity);
+                var profit = currentNet - invested;
+
+                decimal itemRoi = 0;
+                if (invested > 0) itemRoi = (profit / invested) * 100;
+                else if (profit > 0) itemRoi = 100; // Free item profit
+
+                return new StackedAssetStat
+                    {
+                        Name = first.ItemBase.Name,
+                        Skin = first.ItemBase.SkinName,
+                        ImageUrl = first.ItemBase.ImageUrl,
+                        Quantity = qty,
+                        TotalProfit = profit,
+                        Roi = itemRoi
+                    };
+            })
+            .ToList();
+
+        topItems = groupedStats.OrderByDescending(s => s.TotalProfit).Take(3).ToList();
+        worstItems = groupedStats.Where(s => s.TotalProfit < 0).OrderBy(s => s.TotalProfit).Take(3).ToList();
+    }
+
+    // Helper to calculate NET value (Market - 20%)
+    private decimal CalculateItemNetValue(InventoryItem item)
+    {
+        var price = item.ItemBase?.CurrentMarketPrice ?? 0;
+        // If you have attachments logic, add it here too. For dashboard speed, usually base price is enough,
+        // but let's stick to 20% commission rule.
+        return price * 0.8m;
+    }
+
+    private void ResetStats()
+    {
+        totalInvested = 0; currentValue = 0; totalProfit = 0; roi = 0;
+        topItems.Clear(); worstItems.Clear(); chartData.Clear();
     }
 
     private void SetupChart()
     {
         chartOptions = new ApexChartOptions<PortfolioHistoryPoint>
             {
-                Chart = new Chart
-                {
-                    Toolbar = new Toolbar { Show = false },
-                    Zoom = new Zoom { Enabled = false }
-                },
+                Chart = new Chart { Toolbar = new Toolbar { Show = false }, Zoom = new Zoom { Enabled = false } },
                 Colors = new List<string> { "#4e73df" },
-                Stroke = new Stroke { Curve = Curve.Smooth, Width = 3 },
-                DataLabels = new DataLabels { Enabled = false },
-                Yaxis = new List<YAxis>
-            {
-                new YAxis
+                Stroke = new Stroke
                 {
-                    Labels = new YAxisLabels
-                    {
-                        Formatter = @"function (value) { return value.toFixed(0) + ' G'; }"
-                    }
-                }
-            },
-                Tooltip = new Tooltip { X = new TooltipX { Format = "dd MMM yyyy" } }
+                    Curve = Curve.Straight, // 👈 Sharp lines request
+                    Width = 2
+                },
+                DataLabels = new DataLabels { Enabled = false },
+                Yaxis = new List<YAxis> { new YAxis { Labels = new YAxisLabels { Formatter = @"function (value) { return value.toFixed(0); }" } } },
+                Tooltip = new Tooltip { X = new TooltipX { Format = "dd MMM" } }
             };
     }
 
-    private async Task LoadChartData(List<InventoryItem> inventory)
+    private async Task LoadChartData()
     {
         using var context = await DbFactory.CreateDbContextAsync();
 
-        var itemIds = inventory.Select(i => i.ItemBaseId).Distinct().ToList();
+        // Get History for involved items
+        var itemIds = allInventory.Select(i => i.ItemBaseId).Distinct().ToList();
+        var endDate = DateTime.UtcNow.Date;
+        var startDate = endDate.AddDays(-30);
 
         var history = await context.MarketHistory
-            .Where(h => itemIds.Contains(h.ItemBaseId) && h.RecordedAt >= DateTime.UtcNow.AddDays(-30))
+            .Where(h => itemIds.Contains(h.ItemBaseId) && h.RecordedAt >= startDate)
+            .Select(h => new { h.ItemBaseId, h.Price, h.RecordedAt }) // Projection for speed
             .ToListAsync();
 
         if (!history.Any()) return;
 
-        var dates = history.Select(h => h.RecordedAt.Date).Distinct().OrderBy(d => d).ToList();
-
         chartData = new List<PortfolioHistoryPoint>();
 
-        foreach (var date in dates)
+        // Generate data for each day
+        for (var day = startDate; day <= endDate; day = day.AddDays(1))
         {
-            decimal dailyTotalValue = 0;
+            decimal dailyTotal = 0;
 
-            foreach (var invItem in inventory)
+            foreach (var invItem in allInventory)
             {
-                var priceRecord = history
-                    .Where(h => h.ItemBaseId == invItem.ItemBaseId && h.RecordedAt.Date == date)
-                    .OrderByDescending(h => h.RecordedAt)
-                    .FirstOrDefault();
-
-                if (priceRecord != null)
+                // 🔥 CRITICAL FIX: Only count item if we owned it on that date
+                if (invItem.PurchaseDate.Date <= day)
                 {
-                    dailyTotalValue += (priceRecord.Price * 0.8m * invItem.Quantity);
+                    // Find price history for this specific day
+                    // Logic: Get the last recorded price BEFORE or ON 'day'
+                    var priceRecord = history
+                        .Where(h => h.ItemBaseId == invItem.ItemBaseId && h.RecordedAt.Date <= day)
+                        .OrderByDescending(h => h.RecordedAt)
+                        .FirstOrDefault();
+
+                    // If we found history, use it. If not (item existed but no parse data), fallback to purchase price or 0?
+                    // Let's use latest known if available.
+                    if (priceRecord != null)
+                    {
+                        dailyTotal += (priceRecord.Price * 0.8m * invItem.Quantity);
+                    }
+                    else
+                    {
+                        // Fallback: If no history exists for that old date, maybe use PurchasePrice as baseline?
+                        // Or skip. Skipping prevents weird spikes from 0.
+                        // Better: Use PurchasePrice * 0.8 as a "safe" val if chart history is missing.
+                        dailyTotal += (invItem.PurchasePrice * 0.8m * invItem.Quantity);
+                    }
                 }
             }
 
-            if (dailyTotalValue > 0)
+            // Only add point if value > 0 (prevents long flat zero lines at start if portfolio is new)
+            if (dailyTotal > 0 || chartData.Any())
             {
-                chartData.Add(new PortfolioHistoryPoint { Date = date, Value = dailyTotalValue });
+                chartData.Add(new PortfolioHistoryPoint { Date = day, Value = dailyTotal });
             }
         }
     }

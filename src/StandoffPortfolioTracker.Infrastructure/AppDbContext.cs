@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore; // 👈 1. ВАЖНО: Добавлено для Identity
 using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.Core.Entities;
 
 namespace StandoffPortfolioTracker.Infrastructure
 {
-    public class AppDbContext : DbContext
+    // 👇 2. ВАЖНО: Меняем наследование на IdentityDbContext<ApplicationUser>
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -26,6 +28,7 @@ namespace StandoffPortfolioTracker.Infrastructure
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // 👇 3. ВАЖНО: Этот вызов обязателен для настройки таблиц Identity (Users, Roles и т.д.)
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<InventoryItem>()

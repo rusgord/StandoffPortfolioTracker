@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.Core.Entities;
 using StandoffPortfolioTracker.Core.Enums;
+using StandoffPortfolioTracker.Core.Models;
 using StandoffPortfolioTracker.Infrastructure;
 
 namespace StandoffPortfolioTracker.AdminPanel.Services
@@ -15,40 +16,71 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         }
 
         // === ПОЛУЧЕНИЕ С ФИЛЬТРАМИ И ПАГИНАЦИЕЙ ===
-        public async Task<(List<ItemBase> Items, int TotalCount)> GetItemsFilteredAsync(
-            int skip, int take,
-            string? search = null,
-            ItemType? type = null,
-            ItemRarity? rarity = null,
-            int? collectionId = null)
+        public async Task<PagedResult<ItemBase>> GetItemsFilteredAsync(
+    int skip,
+    int take,
+    string search,
+    ItemType? type = null,      
+    ItemRarity? rarity = null, 
+    int collectionId = 0, 
+    bool? isStatTrack = null,   
+    bool? isPattern = null)
         {
             using var context = await _factory.CreateDbContextAsync();
-            var query = context.ItemBases.Include(i => i.Collection).AsQueryable();
 
+            // 1. Базовый запрос
+            var query = context.ItemBases
+                .Include(i => i.Collection)
+                .AsQueryable();
+
+            // 2. Применяем старые фильтры
             if (!string.IsNullOrWhiteSpace(search))
             {
-                search = search.ToLower();
-                query = query.Where(i => i.Name.ToLower().Contains(search) ||
-                                         (i.SkinName != null && i.SkinName.ToLower().Contains(search)));
+                query = query.Where(i => i.Name.Contains(search) || i.SkinName.Contains(search));
             }
 
-            if (type.HasValue) query = query.Where(i => i.Type == type);
-            if (rarity.HasValue) query = query.Where(i => i.Rarity == rarity);
-            if (collectionId.HasValue && collectionId > 0) query = query.Where(i => i.CollectionId == collectionId);
+            if (type.HasValue)
+            {
+                query = query.Where(i => i.Type == type.Value);
+            }
 
+            if (rarity.HasValue)
+            {
+                query = query.Where(i => i.Rarity == rarity.Value);
+            }
+
+            if (collectionId > 0)
+            {
+                query = query.Where(i => i.CollectionId == collectionId);
+            }
+
+            // 3. ✨ ПРИМЕНЯЕМ НОВЫЕ ФИЛЬТРЫ (Серверная фильтрация)
+            if (isStatTrack.HasValue && isStatTrack.Value == true)
+            {
+                query = query.Where(i => i.IsStatTrack);
+            }
+
+            if (isPattern.HasValue && isPattern.Value == true)
+            {
+                query = query.Where(i => i.IsPattern);
+            }
+
+            // 4. Считаем общее кол-во (уже с учетом фильтров!)
             var totalCount = await query.CountAsync();
 
-            // ИСПРАВЛЕННАЯ СОРТИРОВКА
+            // 5. Получаем страницу
             var items = await query
-                .OrderByDescending(i => i.Rarity) // 1. Сначала дорогие (Arcane)
-                .ThenBy(i => i.Name)            // 2. Группируем по оружию (Akimbo Uzi)
-                .ThenBy(i => i.SkinName)        // 3. Группируем по скину (Ravage, Skull...)
-                .ThenBy(i => i.IsStatTrack)     // 4. Сначала обычный, следом StatTrack
+                .OrderByDescending(i => i.Rarity)
+                .ThenBy(i => i.Name)
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync();
 
-            return (items, totalCount);
+            return new PagedResult<ItemBase>
+            {
+                Items = items,
+                TotalCount = totalCount
+            };
         }
 
         // === БАЗОВЫЕ МЕТОДЫ ===

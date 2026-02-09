@@ -20,6 +20,7 @@ namespace StandoffPortfolioTracker.Core.Entities
 
         public ItemRarity Rarity { get; set; }
         public ItemType Type { get; set; }
+        public ItemKind Kind { get; set; }
 
         public int CollectionId { get; set; }
         public GameCollection? Collection { get; set; } // Навигационное свойство

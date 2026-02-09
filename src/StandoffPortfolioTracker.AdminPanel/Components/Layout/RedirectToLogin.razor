@@ -1,0 +1,13 @@
+﻿@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Получаем текущий URL, чтобы вернуться сюда после входа
+        var returnUrl = Navigation.Uri;
+
+        // Перенаправляем на страницу входа Razor Page (не Blazor компонент!)
+        // forceLoad: true ОБЯЗАТЕЛЬНО, так как мы выходим из Blazor-контура в обычный HTTP
+        Navigation.NavigateTo($"Identity/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+}

@@ -1,6 +1,26 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using StandoffPortfolioTracker.AdminPanel.Components.Layout 
+
+<Router AppAssembly="@typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                <RedirectToLogin />
+            </NotAuthorized>
+            <Authorizing>
+                <div class="d-flex justify-content-center mt-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <span class="ms-2">Проверка доступа...</span>
+                </div>
+            </Authorizing>
+        </AuthorizeRouteView>
     </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="alert alert-warning m-4">
+                Sorry, there's nothing at this address.
+            </div>
+        </LayoutView>
+    </NotFound>
 </Router>

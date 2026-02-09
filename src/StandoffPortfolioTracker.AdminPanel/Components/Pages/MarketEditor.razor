@@ -1,13 +1,16 @@
 ﻿@page "/market-editor"
+@using Microsoft.AspNetCore.Authorization
 @using StandoffPortfolioTracker.Core.Entities
 @using StandoffPortfolioTracker.Core.Enums
 @using StandoffPortfolioTracker.AdminPanel.Services
+@attribute [Authorize(Roles = "Admin")]
 @inject ItemService ItemService
 @inject PriceParserService ParserService
 @inject WikiParserService WikiService
 @rendermode InteractiveServer
 
 <style>
+    /* Стили для редкости */
     .rarity-common {
         background-color: #B0C3D9;
         color: #333;
@@ -44,6 +47,138 @@
         border: 1px solid #d4af37;
     }
 
+    /* === Text Colors for Dropdowns === */
+    .text-common {
+        color: #8a99a8;
+    }
+
+    .text-uncommon {
+        color: #5E98D9;
+    }
+
+    .text-rare {
+        color: #4B69FF;
+    }
+
+    .text-epic {
+        color: #8847FF;
+    }
+
+    .text-legendary {
+        color: #D32CE6;
+    }
+
+    .text-arcane {
+        color: #EB4B4B;
+    }
+
+    .text-nameless {
+        color: #e0a800;
+        font-weight: bold;
+    }
+
+    /* === Background Dots for Dropdowns === */
+    .bg-common {
+        background-color: #B0C3D9;
+    }
+
+    .bg-uncommon {
+        background-color: #5E98D9;
+    }
+
+    .bg-rare {
+        background-color: #4B69FF;
+    }
+
+    .bg-epic {
+        background-color: #8847FF;
+    }
+
+    .bg-legendary {
+        background-color: #D32CE6;
+    }
+
+    .bg-arcane {
+        background-color: #EB4B4B;
+    }
+
+    .bg-nameless {
+        background: linear-gradient(45deg, #FFD700, #FDB931);
+    }
+
+    .rarity-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+    }
+
+    /* === Custom Dropdowns === */
+    .custom-select-trigger {
+        cursor: pointer;
+        border: 1px solid #ced4da;
+        padding: 4px 10px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: white;
+        min-height: 31px;
+        font-size: 0.875rem;
+    }
+
+        .custom-select-trigger:hover {
+            background-color: #f8f9fa;
+            border-color: #b6babc;
+        }
+
+    .custom-dropdown-menu {
+        position: absolute;
+        background: white;
+        border: 1px solid #ccc;
+        z-index: 1050;
+        width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        border-radius: 4px;
+        margin-top: 2px;
+    }
+
+        .custom-dropdown-menu.show {
+            display: block;
+        }
+
+    .dropdown-item-custom {
+        padding: 6px 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.875rem;
+    }
+
+        .dropdown-item-custom:hover {
+            background-color: #e9ecef;
+        }
+
+    /* === Toggle Buttons === */
+    .btn-check:checked + .btn-outline-warning {
+        background-color: #ffc107;
+        color: #000;
+        border-color: #ffc107;
+    }
+
+    .btn-check:checked + .btn-outline-info {
+        background-color: #0dcaf0;
+        color: #fff;
+        border-color: #0dcaf0;
+    }
+
+    /* === General === */
     .price-input {
         width: 100px !important;
         text-align: right;
@@ -65,7 +200,6 @@
         border-color: #6c757d;
     }
 
-    /* Стили для выпадающего списка поиска */
     .autocomplete-dropdown {
         position: absolute;
         top: 100%;
@@ -93,7 +227,7 @@
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>🛒 Справочник Предметов</h3>
+        <h3>🛒 Справочник Предметов (Admin)</h3>
         <div>
             <button class="btn btn-outline-secondary me-2" @onclick="ToggleCollections">📁 Коллекции</button>
             <button class="btn btn-success" @onclick="CreateNewItem">➕ Создать</button>
@@ -106,7 +240,7 @@
                 <button class="btn btn-sm btn-danger" @onclick="RunImport" disabled="@isBusy">
                     @if (isBusy && currentAction == "import")
                     {
-                        <span class="spinner-border spinner-border-sm"></span> <span>Загрузка...</span>
+                        <span class="spinner-border spinner-border-sm"></span>
                     }
                     else
                     {
@@ -116,21 +250,21 @@
                 <button class="btn btn-sm btn-dark ms-2" @onclick="DebugApi" disabled="@isBusy">
                     @if (isBusy && currentAction == "debug")
                     {
-                        <span class="spinner-border spinner-border-sm"></span> <span>Скачиваем...</span>
+                        <span class="spinner-border spinner-border-sm"></span>
                     }
                     else
                     {
-                        <span>🐞 Проверить API</span>
+                        <span>🐞 API Check</span>
                     }
                 </button>
                 <button class="btn btn-sm btn-primary" @onclick="RunParser" disabled="@isBusy">
                     @if (isBusy && currentAction == "parse")
                     {
-                        <span class="spinner-border spinner-border-sm"></span> <span>Цены...</span>
+                        <span class="spinner-border spinner-border-sm"></span>
                     }
                     else
                     {
-                        <span>💲 Обновить цены</span>
+                        <span>💲 Цены</span>
                     }
                 </button>
                 <button class="btn btn-warning text-dark" @onclick="FixImages" disabled="@isBusy">
@@ -140,7 +274,7 @@
                     }
                     else
                     {
-                        <span>🖼️ Заменить картинки на PNG (Без фона)</span>
+                        <span>🖼️ PNG</span>
                     }
                 </button>
             </div>
@@ -152,29 +286,18 @@
     </div>
 
     <div class="card mb-3 border-info">
-        <div class="card-header bg-info text-white py-1">
-            <small>📥 Парсинг с Fandom Wiki (Через Playwright)</small>
-        </div>
+        <div class="card-header bg-info text-white py-1"><small>📥 Парсинг с Wiki</small></div>
         <div class="card-body py-2">
             <div class="input-group input-group-sm">
-                <input type="text" class="form-control" placeholder="Ссылка (например .../wiki/8_Years)" @bind="wikiUrl" />
+                <input type="text" class="form-control" placeholder="Ссылка Wiki..." @bind="wikiUrl" />
                 <select class="form-select" @bind="wikiCollectionId" style="max-width: 200px;">
-                    <option value="0">Выберите коллекцию...</option>
+                    <option value="0">Коллекция...</option>
                     @foreach (var c in collections)
                     {
                         <option value="@c.Id">@c.Name</option>
                     }
                 </select>
-                <button class="btn btn-info text-white" @onclick="ParseWiki" disabled="@(isBusy || wikiCollectionId == 0)">
-                    @if (isBusy && currentAction == "wiki")
-                    {
-                        <span class="spinner-border spinner-border-sm"></span>
-                    }
-                    else
-                    {
-                        <span>🚀 Запарсить</span>
-                    }
-                </button>
+                <button class="btn btn-info text-white" @onclick="ParseWiki" disabled="@(isBusy || wikiCollectionId == 0)">🚀</button>
             </div>
         </div>
     </div>
@@ -183,61 +306,30 @@
     {
         <div class="card mb-3 border-info shadow">
             <div class="card-header bg-info text-white d-flex justify-content-between py-1 align-items-center">
-                <span>📁 @(editingCol == null ? "Создание новой коллекции" : $"Редактирование: {editingCol.Name}")</span>
+                <span>📁 Редактор коллекций</span>
                 <button class="btn-close btn-close-white" @onclick="ToggleCollections"></button>
             </div>
             <div class="card-body bg-light">
                 <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-md-3"><input type="text" class="form-control form-control-sm" placeholder="Название" @bind="newColName" /></div>
+                    <div class="col-md-4"><input type="text" class="form-control form-control-sm" placeholder="URL иконки" @bind="newColImage" /></div>
                     <div class="col-md-3">
-                        <label class="small text-muted mb-0">Название</label>
-                        <input type="text" class="form-control form-control-sm" placeholder="Название" @bind="newColName" />
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="isRemoved" @bind="newColIsRemoved" /><label class="form-check-label small" for="isRemoved">⛔ Removed</label></div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="small text-muted mb-0">Ссылка на иконку</label>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" placeholder="URL картинки" @bind="newColImage" />
-                            @if (!string.IsNullOrEmpty(newColImage))
-                            {
-                                <span class="input-group-text">
-                                    <img src="@newColImage" referrerpolicy="no-referrer" style="width: 20px; height: 20px; object-fit:contain;" />
-                                </span>
-                            }
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check pt-3">
-                            <input class="form-check-input" type="checkbox" id="isRemovedCheck" @bind="newColIsRemoved" />
-                            <label class="form-check-label small" for="isRemovedCheck">⛔ Удалена из игры</label>
-                        </div>
-                    </div>
-                    <div class="col-md-2 d-flex gap-1">
-                        <button class="btn btn-success btn-sm w-100" @onclick="SaveCollection">
-                            @(editingCol == null ? "Добавить" : "Сохранить")
-                        </button>
-                        @if (editingCol != null)
-                        {
-                            <button class="btn btn-outline-secondary btn-sm" @onclick="CancelEditCollection" title="Отмена">✕</button>
-                        }
-                    </div>
+                    <div class="col-md-2"><button class="btn btn-success btn-sm w-100" @onclick="SaveCollection">Сохранить</button></div>
                 </div>
-                <hr class="my-2" />
-                <div class="d-flex flex-wrap gap-2" style="max-height: 200px; overflow-y: auto;">
+                <div class="d-flex flex-wrap gap-2" style="max-height: 150px; overflow-y: auto;">
                     @foreach (var c in collections)
                     {
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-secondary d-flex align-items-center gap-2 @(editingCol?.Id == c.Id ? "collection-btn-active" : "")"
-                                    @onclick="() => EditCollection(c)" title="Редактировать">
+                            <button class="btn btn-outline-secondary d-flex align-items-center gap-2 @(editingCol?.Id == c.Id ? "collection-btn-active" : "")" @onclick="() => EditCollection(c)">
                                 @if (!string.IsNullOrEmpty(c.ImageUrl))
                                 {
-                                    <img src="@c.ImageUrl" referrerpolicy="no-referrer" class="collection-img-sm" />
+                                    <img src="@c.ImageUrl" class="collection-img-sm" referrerpolicy="no-referrer" />
                                 }
                                 <span>@c.Name</span>
-                                @if (c.IsRemoved)
-                                {
-                                    <span title="Удалена из игры">⛔</span>
-                                }
                             </button>
-                            <button class="btn btn-outline-danger" @onclick="() => DeleteCollection(c.Id)" title="Удалить">✕</button>
+                            <button class="btn btn-outline-danger" @onclick="() => DeleteCollection(c.Id)">✕</button>
                         </div>
                     }
                 </div>
@@ -249,31 +341,86 @@
         <div class="col-md-8">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-light p-2">
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control form-control-sm" placeholder="🔍 Поиск..."
-                                   @bind="searchQuery" @bind:event="oninput" @onkeyup="ResetAndLoad" />
-                        </div>
+                    <div class="row g-2 align-items-center">
                         <div class="col-md-3">
-                            <select class="form-select form-select-sm" @bind="filterRarity" @bind:after="ResetAndLoad">
-                                <option value="">Вся редкость</option>
-                                @foreach (var r in Enum.GetValues(typeof(ItemRarity)))
+                            <input type="text" class="form-control form-control-sm" placeholder="🔍 Поиск..." @bind="searchQuery" @bind:event="oninput" @onkeyup="ResetAndLoad" />
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" @bind="filterType" @bind:after="ResetAndLoad">
+                                <option value="">Все типы</option>
+                                @foreach (var t in Enum.GetValues(typeof(ItemType)))
                                 {
-                                    <option value="@r">@r</option>
+                                    <option value="@t">@t</option>
                                 }
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <select class="form-select form-select-sm" @bind="filterCollection" @bind:after="ResetAndLoad">
-                                <option value="0">Все коллекции</option>
+                        <div class="col-md-2 position-relative">
+                            <div class="custom-select-trigger" @onclick="() => isHeaderRarityOpen = !isHeaderRarityOpen">
+                                @if (!filterRarity.HasValue)
+                                {
+                                    <span class="text-muted">Все редкости</span>
+                                }
+                                else
+                                {
+                                    <div class="d-flex align-items-center">
+                                        <span class="rarity-dot @GetRarityBgClass(filterRarity.Value)"></span>
+                                        <span class="fw-bold @GetRarityTextClass(filterRarity.Value)">@filterRarity</span>
+                                    </div>
+                                }
+                                <span class="small ms-1">▼</span>
+                            </div>
+                            <div class="custom-dropdown-menu @(isHeaderRarityOpen ? "show" : "")">
+                                <div class="dropdown-item-custom" @onclick="() => SetHeaderRarity(null)">Все</div>
+                                @foreach (var r in Enum.GetValues(typeof(ItemRarity)).Cast<ItemRarity>())
+                                {
+                                    <div class="dropdown-item-custom" @onclick="() => SetHeaderRarity(r)">
+                                        <span class="rarity-dot @GetRarityBgClass(r)"></span>
+                                        <span class="@GetRarityTextClass(r)">@r</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-2 position-relative">
+                            <div class="custom-select-trigger" @onclick="() => isHeaderCollectionOpen = !isHeaderCollectionOpen">
+                                @if (filterCollection == 0)
+                                {
+                                    <span class="text-muted">Все коллекции</span>
+                                }
+                                else
+                                {
+                                    var c = collections.FirstOrDefault(x => x.Id == filterCollection);
+                                    <div class="d-flex align-items-center gap-2 text-truncate">
+                                        @if (!string.IsNullOrEmpty(c?.ImageUrl))
+                                        {
+                                            <img src="@c.ImageUrl" class="collection-img-sm" referrerpolicy="no-referrer" />
+                                        }
+                                        <span>@c?.Name</span>
+                                    </div>
+                                }
+                                <span class="small ms-1">▼</span>
+                            </div>
+                            <div class="custom-dropdown-menu @(isHeaderCollectionOpen ? "show" : "")">
+                                <div class="dropdown-item-custom" @onclick="() => SetHeaderCollection(0)">Все коллекции</div>
                                 @foreach (var c in collections)
                                 {
-                                    <option value="@c.Id">@c.Name</option>
+                                    <div class="dropdown-item-custom" @onclick="() => SetHeaderCollection(c.Id)">
+                                        @if (!string.IsNullOrEmpty(c.ImageUrl))
+                                        {
+                                            <img src="@c.ImageUrl" class="collection-img-sm" referrerpolicy="no-referrer" />
+                                        }
+                                        <span>@c.Name</span>
+                                    </div>
                                 }
-                            </select>
+                            </div>
                         </div>
-                        <div class="col-md-2 text-end pt-1 small text-muted">
-                            Всего: @totalItems
+                        <div class="col-md-3 d-flex gap-1 justify-content-end">
+                            <input type="checkbox" class="btn-check" id="btn-check-st" autocomplete="off" @bind="filterStatTrack" @bind:after="ResetAndLoad">
+                            <label class="btn btn-sm btn-outline-warning fw-bold" for="btn-check-st" title="StatTrack Only">ST</label>
+
+                            <input type="checkbox" class="btn-check" id="btn-check-pt" autocomplete="off" @bind="filterPattern" @bind:after="ResetAndLoad">
+                            <label class="btn btn-sm btn-outline-info fw-bold" for="btn-check-pt" title="Pattern Only">P</label>
+
+                            <div class="text-muted small align-self-center ms-2">@totalItems шт.</div>
                         </div>
                     </div>
                 </div>
@@ -284,7 +431,7 @@
                             <tr>
                                 <th width="50">Фото</th>
                                 <th>Название</th>
-                                <th>Редкость / Тип</th>
+                                <th>Редкость / Подтип</th>
                                 <th class="text-end">Цена (G)</th>
                                 <th width="40"></th>
                             </tr>
@@ -331,23 +478,25 @@
                                                             <img src="@item.Collection.ImageUrl" referrerpolicy="no-referrer" style="width: 12px;" />
                                                         }
                                                         @item.Collection.Name
-                                                        @if (item.Collection.IsRemoved)
-                                                        {
-                                                            <span title="Коллекция удалена из игры">⛔</span>
-                                                        }
                                                     </span>
                                                 }
                                             </div>
                                         </td>
                                         <td>
-                                            <span class="badge @GetRarityClass(item.Rarity)">@item.Rarity</span>
-                                            <div class="small text-muted">@item.Type</div>
+                                            @if (item.Type == ItemType.Container)
+                                            {
+                                                <span class="badge @GetContainerDisplayClass(item)">@item.Kind</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge @GetRarityBadgeClass(item.Rarity)">@item.Rarity</span>
+                                            }
+                                            <div class="small text-muted mt-1">@item.Type</div>
                                         </td>
                                         <td class="text-end">
                                             <input type="number" step="0.01" class="form-control form-control-sm d-inline-block price-input"
                                                    value="@item.CurrentMarketPrice.ToString("F2").Replace(",", ".")"
-                                                   @onchange="@(e => UpdatePrice(item, e.Value))"
-                                                   @onclick:stopPropagation="true" />
+                                                   @onchange="@(e => UpdatePrice(item, e.Value))" @onclick:stopPropagation="true" />
                                         </td>
                                         <td>✏️</td>
                                     </tr>
@@ -380,31 +529,19 @@
                 </div>
                 <div class="card-body">
                     <EditForm Model="@selectedItem">
-
                         <div class="text-center mb-2 position-relative">
                             @if (!string.IsNullOrEmpty(selectedItem.ImageUrl))
                             {
                                 <img src="@selectedItem.ImageUrl" referrerpolicy="no-referrer" class="img-thumbnail" style="height: 120px; object-fit: contain;" />
                             }
-                            <div class="mt-1">
-                                <input type="text" class="form-control form-control-sm small text-muted" placeholder="Ссылка на фото"
-                                       @bind="selectedItem.ImageUrl" @bind:after="AutoSave" />
-                            </div>
+                            <div class="mt-1"><input type="text" class="form-control form-control-sm small text-muted" placeholder="Ссылка на фото" @bind="selectedItem.ImageUrl" @bind:after="AutoSave" /></div>
                         </div>
 
-                        <div class="mb-2">
-                            <label class="small text-muted mb-0">Название</label>
-                            <input type="text" class="form-control form-control-sm fw-bold"
-                                   @bind="selectedItem.Name" @bind:after="AutoSave" />
-                        </div>
-                        <div class="mb-2">
-                            <label class="small text-muted mb-0">Скин</label>
-                            <input type="text" class="form-control form-control-sm"
-                                   @bind="selectedItem.SkinName" @bind:after="AutoSave" />
-                        </div>
+                        <div class="mb-2"><label class="small text-muted mb-0">Название</label><input type="text" class="form-control form-control-sm fw-bold" @bind="selectedItem.Name" @bind:after="AutoSave" /></div>
+                        <div class="mb-2"><label class="small text-muted mb-0">Скин</label><input type="text" class="form-control form-control-sm" @bind="selectedItem.SkinName" @bind:after="AutoSave" /></div>
 
                         <div class="row g-2 mb-2">
-                            <div class="col-6">
+                            <div class="col-4">
                                 <label class="small text-muted mb-0">Тип</label>
                                 <select @bind="selectedItem.Type" class="form-select form-select-sm" @bind:after="AutoSave">
                                     @foreach (var t in Enum.GetValues(typeof(ItemType)))
@@ -413,33 +550,45 @@
                                     }
                                 </select>
                             </div>
-                            <div class="col-6">
-                                <label class="small text-muted mb-0">Редкость</label>
-                                <select @bind="selectedItem.Rarity" class="form-select form-select-sm" @bind:after="AutoSave">
-                                    @foreach (var r in Enum.GetValues(typeof(ItemRarity)))
+                            <div class="col-4">
+                                <label class="small text-muted mb-0">Подтип</label>
+                                <select @bind="selectedItem.Kind" class="form-select form-select-sm" @bind:after="AutoSave">
+                                    @foreach (var k in Enum.GetValues(typeof(ItemKind)))
                                     {
-                                        <option value="@r">@r</option>
+                                        <option value="@k">@k</option>
                                     }
                                 </select>
+                            </div>
+                            <div class="col-4 position-relative">
+                                <label class="small text-muted mb-0">Редкость</label>
+                                <div class="custom-select-trigger" @onclick="() => isFormRarityOpen = !isFormRarityOpen">
+                                    <div class="d-flex align-items-center" style="overflow:hidden">
+                                        <span class="rarity-dot @GetRarityBgClass(selectedItem.Rarity)"></span>
+                                        <span class="text-truncate">@selectedItem.Rarity</span>
+                                    </div>
+                                    <span class="small ms-1">▼</span>
+                                </div>
+                                <div class="custom-dropdown-menu @(isFormRarityOpen ? "show" : "")">
+                                    @foreach (var r in Enum.GetValues(typeof(ItemRarity)).Cast<ItemRarity>())
+                                    {
+                                        <div class="dropdown-item-custom" @onclick="() => SetFormRarity(r)">
+                                            <span class="rarity-dot @GetRarityBgClass(r)"></span>
+                                            <span class="@GetRarityTextClass(r)">@r</span>
+                                        </div>
+                                    }
+                                </div>
                             </div>
                         </div>
 
                         <div class="mb-2 position-relative">
-                            <label class="small text-muted mb-0">Коллекция (Поиск)</label>
+                            <label class="small text-muted mb-0">Коллекция</label>
                             <div class="input-group input-group-sm">
-                                <input type="text" class="form-control"
-                                       placeholder="Начните вводить название..."
-                                       @bind="collectionSearchQuery"
-                                       @bind:event="oninput"
-                                       @onfocus="() => isCollectionDropdownOpen = true"
-                                       @onfocusout="CloseCollectionDropdownDelayed" />
-
+                                <input type="text" class="form-control" placeholder="Поиск..." @bind="collectionSearchQuery" @bind:event="oninput" @onfocus="() => isCollectionDropdownOpen = true" @onfocusout="CloseCollectionDropdownDelayed" />
                                 @if (selectedItem.CollectionId > 1)
                                 {
-                                    <button class="btn btn-outline-secondary" type="button" @onclick="ClearCollectionSelection" title="Сбросить">✕</button>
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="ClearCollectionSelection">✕</button>
                                 }
                             </div>
-
                             @if (isCollectionDropdownOpen)
                             {
                                 <div class="autocomplete-dropdown shadow-sm">
@@ -451,44 +600,31 @@
                                     {
                                         @foreach (var col in FilteredCollections)
                                         {
-                                            <div class="autocomplete-item d-flex align-items-center gap-2"
-                                                 @onmousedown="() => SelectCollectionFromSearch(col)">
+                                            <div class="autocomplete-item d-flex align-items-center gap-2" @onmousedown="() => SelectCollectionFromSearch(col)">
                                                 @if (!string.IsNullOrEmpty(col.ImageUrl))
                                                 {
-                                                    <img src="@col.ImageUrl" referrerpolicy="no-referrer" style="width: 20px; height: 20px; object-fit: contain;" />
+                                                    <img src="@col.ImageUrl" referrerpolicy="no-referrer" style="width: 20px;" />
                                                 }
                                                 <span class="small">@col.Name</span>
-                                                @if (col.IsRemoved)
-                                                {
-                                                    <span class="text-danger small ms-auto">⛔</span>
-                                                }
                                             </div>
                                         }
                                     }
                                 </div>
                             }
-
                             @if (selectedItem.CollectionId > 1)
                             {
                                 var current = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId);
-                                if (current != null)
-                                {
-                                    <div class="mt-1 small text-success d-flex align-items-center gap-1">
-                                        <span>Выбрано: <strong>@current.Name</strong></span>
-                                    </div>
-                                }
+                                <div class="mt-1 small text-success">Выбрано: <strong>@current?.Name</strong></div>
                             }
                         </div>
 
                         <div class="card bg-light p-2 mb-2 border-0">
                             <div class="form-check form-switch mb-1">
-                                <input type="checkbox" class="form-check-input" id="st"
-                                       @bind="selectedItem.IsStatTrack" @bind:after="AutoSave" />
+                                <input type="checkbox" class="form-check-input" id="st" @bind="selectedItem.IsStatTrack" @bind:after="AutoSave" />
                                 <label class="form-check-label small" for="st">StatTrack™</label>
                             </div>
                             <div class="form-check form-switch">
-                                <input type="checkbox" class="form-check-input" id="pt"
-                                       @bind="selectedItem.IsPattern" @bind:after="AutoSave" />
+                                <input type="checkbox" class="form-check-input" id="pt" @bind="selectedItem.IsPattern" @bind:after="AutoSave" />
                                 <label class="form-check-label small" for="pt">Pattern Based</label>
                             </div>
                         </div>
@@ -518,8 +654,11 @@
 
     // Filters
     private string searchQuery = "";
+    private ItemType? filterType = null;
     private ItemRarity? filterRarity = null;
     private int filterCollection = 0;
+    private bool filterStatTrack = false;
+    private bool filterPattern = false;
     private int currentPage = 1;
     private const int pageSize = 50;
 
@@ -529,25 +668,22 @@
     private string currentAction = "";
     private string statusMessage = "";
     private bool showCollections = false;
+    private bool isHeaderRarityOpen = false;
+    private bool isHeaderCollectionOpen = false;
+    private bool isFormRarityOpen = false;
 
-    // Collection Manager State
+    // Collection Manager & Autocomplete
     private string newColName = "";
     private string newColImage = "";
     private bool newColIsRemoved = false;
     private GameCollection? editingCol;
-
     private string wikiUrl = "";
     private int wikiCollectionId = 0;
-
-    // Autocomplete State
     private string collectionSearchQuery = "";
     private bool isCollectionDropdownOpen = false;
 
-    // Фильтрация коллекций для поиска
     private IEnumerable<GameCollection> FilteredCollections =>
-        string.IsNullOrWhiteSpace(collectionSearchQuery)
-            ? collections.Take(10) // Если пусто - показываем первые 10
-            : collections.Where(c => c.Name.Contains(collectionSearchQuery, StringComparison.OrdinalIgnoreCase));
+        string.IsNullOrWhiteSpace(collectionSearchQuery) ? collections.Take(10) : collections.Where(c => c.Name.Contains(collectionSearchQuery, StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnInitializedAsync()
     {
@@ -558,220 +694,59 @@
 
     private async Task LoadData()
     {
-        var res = await ItemService.GetItemsFilteredAsync((currentPage - 1) * pageSize, pageSize, searchQuery, null, filterRarity, filterCollection);
+        // ⚠️ Ensure ItemService.GetItemsFilteredAsync accepts bool? for ST/Pattern
+        var res = await ItemService.GetItemsFilteredAsync(
+            (currentPage - 1) * pageSize, pageSize, searchQuery, filterType, filterRarity, filterCollection,
+            filterStatTrack ? true : null, filterPattern ? true : null
+        );
         items = res.Items;
         totalItems = res.TotalCount;
         StateHasChanged();
     }
 
-    // === Selection Logic ===
-    private void SelectItem(ItemBase item)
-    {
-        selectedItem = item;
-        // Заполняем поиск названием коллекции выбранного предмета
-        var col = collections.FirstOrDefault(c => c.Id == item.CollectionId);
-        collectionSearchQuery = col != null && col.Id > 1 ? col.Name : "";
-    }
+    // === Visual Filter Helpers ===
+    private void SetHeaderRarity(ItemRarity? r) { filterRarity = r; isHeaderRarityOpen = false; ResetAndLoad(); }
+    private void SetHeaderCollection(int id) { filterCollection = id; isHeaderCollectionOpen = false; ResetAndLoad(); }
+    private void SetFormRarity(ItemRarity r) { selectedItem.Rarity = r; isFormRarityOpen = false; AutoSave(); }
 
-    private void CreateNewItemModel()
-    {
-        selectedItem = new ItemBase { CollectionId = 1, Type = ItemType.Guns, Rarity = ItemRarity.Common };
-        collectionSearchQuery = ""; // Очищаем поиск для нового предмета
-    }
-
-    // === Создание нового предмета (Сброс формы) ===
-    private void CreateNewItem()
-    {
-        CreateNewItemModel();
-        isSaving = false;
-    }
-
-    // === AutoSave ===
-    private async Task AutoSave()
-    {
-        if (selectedItem.Id == 0) return;
-
-        isSaving = true;
-        StateHasChanged();
-
-        try
-        {
-            // Ручное обновление связи для UI
-            var newCol = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId);
-            if (newCol != null) selectedItem.Collection = newCol;
-
-            await ItemService.UpdateItemAsync(selectedItem);
-        }
-        catch (Exception ex)
-        {
-            statusMessage = "Ошибка: " + ex.Message;
-        }
-
-        await Task.Delay(300);
-        isSaving = false;
-        StateHasChanged();
-    }
-
+    // === Selection & CRUD ===
+    private void SelectItem(ItemBase item) { selectedItem = item; var col = collections.FirstOrDefault(c => c.Id == item.CollectionId); collectionSearchQuery = col != null && col.Id > 1 ? col.Name : ""; }
+    private void CreateNewItemModel() { selectedItem = new ItemBase { CollectionId = 1, Type = ItemType.Guns, Kind = ItemKind.None, Rarity = ItemRarity.Common }; collectionSearchQuery = ""; }
+    private void CreateNewItem() { CreateNewItemModel(); isSaving = false; }
+    private async Task AutoSave() { if (selectedItem.Id == 0) return; isSaving = true; StateHasChanged(); try { var newCol = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId); if (newCol != null) selectedItem.Collection = newCol; await ItemService.UpdateItemAsync(selectedItem); } catch (Exception ex) { statusMessage = "Ошибка: " + ex.Message; } await Task.Delay(300); isSaving = false; StateHasChanged(); }
     private async Task CreateItemManually() { await ItemService.AddItemAsync(selectedItem); await LoadData(); }
     private async Task DeleteItem() { if (selectedItem.Id == 0) return; await ItemService.DeleteItemAsync(selectedItem.Id); CreateNewItemModel(); await LoadData(); }
+    private async Task UpdatePrice(ItemBase item, object val) { if (decimal.TryParse(val?.ToString()?.Replace(".", ","), out decimal p)) { item.CurrentMarketPrice = p; await ItemService.UpdateItemAsync(item); } }
 
-    private async Task UpdatePrice(ItemBase item, object val)
-    {
-        if (decimal.TryParse(val?.ToString()?.Replace(".", ","), out decimal p))
-        {
-            item.CurrentMarketPrice = p;
-            await ItemService.UpdateItemAsync(item);
-        }
-    }
-
-    // === Autocomplete Logic ===
-    private async Task SelectCollectionFromSearch(GameCollection col)
-    {
-        selectedItem.CollectionId = col.Id;
-        selectedItem.Collection = col; // Обновляем связь
-        collectionSearchQuery = col.Name; // Обновляем текст в инпуте
-        isCollectionDropdownOpen = false;
-        await AutoSave();
-    }
-
-    private async Task ClearCollectionSelection()
-    {
-        selectedItem.CollectionId = 1; // ID 1 = Без коллекции
-        var defaultCol = collections.FirstOrDefault(c => c.Id == 1);
-        if (defaultCol != null) selectedItem.Collection = defaultCol;
-
-        collectionSearchQuery = "";
-        await AutoSave();
-    }
-
-    private async Task CloseCollectionDropdownDelayed()
-    {
-        await Task.Delay(200); // Задержка, чтобы успел сработать клик
-        isCollectionDropdownOpen = false;
-    }
-
-    // === Collection Manager Logic ===
+    // === Autocomplete & Collections ===
+    private async Task SelectCollectionFromSearch(GameCollection col) { selectedItem.CollectionId = col.Id; selectedItem.Collection = col; collectionSearchQuery = col.Name; isCollectionDropdownOpen = false; await AutoSave(); }
+    private async Task ClearCollectionSelection() { selectedItem.CollectionId = 1; var defaultCol = collections.FirstOrDefault(c => c.Id == 1); if (defaultCol != null) selectedItem.Collection = defaultCol; collectionSearchQuery = ""; await AutoSave(); }
+    private async Task CloseCollectionDropdownDelayed() { await Task.Delay(200); isCollectionDropdownOpen = false; }
     private void ToggleCollections() => showCollections = !showCollections;
+    private void EditCollection(GameCollection c) { editingCol = c; newColName = c.Name; newColImage = c.ImageUrl ?? ""; newColIsRemoved = c.IsRemoved; }
+    private void CancelEditCollection() { editingCol = null; newColName = ""; newColImage = ""; newColIsRemoved = false; }
+    private async Task SaveCollection() { if (string.IsNullOrWhiteSpace(newColName)) return; var c = editingCol ?? new GameCollection(); c.Name = newColName; c.ImageUrl = newColImage; c.IsRemoved = newColIsRemoved; await ItemService.SaveCollectionAsync(c); collections = await ItemService.GetCollectionsAsync(); CancelEditCollection(); }
+    private async Task DeleteCollection(int id) { try { await ItemService.DeleteCollectionAsync(id); collections = await ItemService.GetCollectionsAsync(); } catch (Exception ex) { statusMessage = ex.Message; } }
 
-    private void EditCollection(GameCollection c)
-    {
-        editingCol = c;
-        newColName = c.Name;
-        newColImage = c.ImageUrl ?? "";
-        newColIsRemoved = c.IsRemoved;
-    }
-
-    private void CancelEditCollection()
-    {
-        editingCol = null;
-        newColName = ""; newColImage = ""; newColIsRemoved = false;
-    }
-
-    private async Task SaveCollection()
-    {
-        if (string.IsNullOrWhiteSpace(newColName)) return;
-        var c = editingCol ?? new GameCollection();
-        c.Name = newColName;
-        c.ImageUrl = newColImage;
-        c.IsRemoved = newColIsRemoved;
-        await ItemService.SaveCollectionAsync(c);
-        collections = await ItemService.GetCollectionsAsync();
-        CancelEditCollection();
-    }
-
-    private async Task DeleteCollection(int id)
-    {
-        try { await ItemService.DeleteCollectionAsync(id); collections = await ItemService.GetCollectionsAsync(); }
-        catch (Exception ex) { statusMessage = ex.Message; }
-    }
-
-    // Wiki Parser
-    private async Task ParseWiki()
-    {
-        // Проверка на пустые поля
-        if (string.IsNullOrWhiteSpace(wikiUrl) || wikiCollectionId == 0) return;
-
-        var targetCollection = collections.FirstOrDefault(c => c.Id == wikiCollectionId);
-        if (targetCollection == null) return;
-
-        isBusy = true;
-        currentAction = "wiki";
-        statusMessage = $"Парсим Вики для {targetCollection.Name} (Playwright)...";
-
-        try
-        {
-            statusMessage = await WikiService.ParseCollectionFromWikiUrl(wikiUrl, targetCollection.Name);
-
-            // Обновляем таблицу после парсинга
-            await LoadData();
-            collections = await ItemService.GetCollectionsAsync();
-        }
-        catch (Exception ex)
-        {
-            statusMessage = "Ошибка: " + ex.Message;
-        }
-
-        isBusy = false;
-        currentAction = "";
-    }
-
-    private async Task FixImages()
-    {
-        isBusy = true;
-        currentAction = "images";
-        statusMessage = "Загружаем красивые картинки...";
-
-        try
-        {
-            statusMessage = await ParserService.UpdateImagesFromApiAsync();
-            await LoadData();
-        }
-        catch (Exception ex)
-        {
-            statusMessage = "Ошибка: " + ex.Message;
-        }
-
-        isBusy = false;
-        currentAction = "";
-    }
-
-    // Debugger API
-    private async Task DebugApi()
-    {
-        isBusy = true;
-        currentAction = "debug"; // Включаем спиннер именно на этой кнопке
-        statusMessage = "Диагностика API запущена...";
-
-        try
-        {
-            // Вызываем метод диагностики из сервиса
-            statusMessage = await ParserService.DebugDownloadApiDataAsync();
-        }
-        catch (Exception ex)
-        {
-            statusMessage = "Ошибка: " + ex.Message;
-        }
-
-        isBusy = false;
-        currentAction = ""; // Выключаем спиннер
-    }
-
-    // === Parser Logic ===
+    // === Parser ===
+    private async Task ParseWiki() { if (string.IsNullOrWhiteSpace(wikiUrl) || wikiCollectionId == 0) return; var targetCollection = collections.FirstOrDefault(c => c.Id == wikiCollectionId); if (targetCollection == null) return; isBusy = true; currentAction = "wiki"; statusMessage = $"Парсим Вики..."; try { statusMessage = await WikiService.ParseCollectionFromWikiUrl(wikiUrl, targetCollection.Name); await LoadData(); collections = await ItemService.GetCollectionsAsync(); } catch (Exception ex) { statusMessage = "Ошибка: " + ex.Message; } isBusy = false; currentAction = ""; }
+    private async Task FixImages() { isBusy = true; currentAction = "images"; statusMessage = "Загружаем картинки..."; try { statusMessage = await ParserService.UpdateImagesFromApiAsync(); await LoadData(); } catch (Exception ex) { statusMessage = "Ошибка: " + ex.Message; } isBusy = false; currentAction = ""; }
+    private async Task DebugApi() { isBusy = true; currentAction = "debug"; statusMessage = "API..."; try { statusMessage = await ParserService.DebugDownloadApiDataAsync(); } catch (Exception ex) { statusMessage = "Ошибка: " + ex.Message; } isBusy = false; currentAction = ""; }
     private async Task RunImport() { isBusy = true; currentAction = "import"; try { statusMessage = await ParserService.ImportAllSkinsAsync(); await LoadData(); } catch (Exception ex) { statusMessage = ex.Message; } isBusy = false; }
     private async Task RunParser() { isBusy = true; currentAction = "parse"; try { statusMessage = await ParserService.UpdateAllPricesAsync(); await LoadData(); } catch (Exception ex) { statusMessage = ex.Message; } isBusy = false; }
     private async Task ResetAndLoad() { currentPage = 1; await LoadData(); }
     private async Task NextPage() { currentPage++; await LoadData(); }
     private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadData(); } }
 
-    private string GetRarityClass(ItemRarity r) => r switch
+    // === Color Helpers ===
+    private string GetContainerDisplayClass(ItemBase item)
     {
-        ItemRarity.Common => "rarity-common",
-        ItemRarity.Uncommon => "rarity-uncommon",
-        ItemRarity.Rare => "rarity-rare",
-        ItemRarity.Epic => "rarity-epic",
-        ItemRarity.Legendary => "rarity-legendary",
-        ItemRarity.Arcane => "rarity-arcane",
-        ItemRarity.Nameless => "rarity-nameless",
-        _ => "bg-light"
-    };
+        if (item.Kind == ItemKind.Box || item.Kind == ItemKind.Crate || item.Kind == ItemKind.Other)
+            return GetRarityBadgeClass(item.Rarity);
+        return "rarity-nameless";
+    }
+
+    private string GetRarityBadgeClass(ItemRarity r) => r switch { ItemRarity.Common => "rarity-common", ItemRarity.Uncommon => "rarity-uncommon", ItemRarity.Rare => "rarity-rare", ItemRarity.Epic => "rarity-epic", ItemRarity.Legendary => "rarity-legendary", ItemRarity.Arcane => "rarity-arcane", ItemRarity.Nameless => "rarity-nameless", _ => "bg-light" };
+    private string GetRarityTextClass(ItemRarity r) => r switch { ItemRarity.Common => "text-common", ItemRarity.Uncommon => "text-uncommon", ItemRarity.Rare => "text-rare", ItemRarity.Epic => "text-epic", ItemRarity.Legendary => "text-legendary", ItemRarity.Arcane => "text-arcane", ItemRarity.Nameless => "text-nameless", _ => "text-dark" };
+    private string GetRarityBgClass(ItemRarity r) => r switch { ItemRarity.Common => "bg-common", ItemRarity.Uncommon => "bg-uncommon", ItemRarity.Rare => "bg-rare", ItemRarity.Epic => "bg-epic", ItemRarity.Legendary => "bg-legendary", ItemRarity.Arcane => "bg-arcane", ItemRarity.Nameless => "bg-nameless", _ => "bg-light" };
 }

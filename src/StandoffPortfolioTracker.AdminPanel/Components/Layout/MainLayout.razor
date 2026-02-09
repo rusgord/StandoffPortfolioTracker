@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject IHttpContextAccessor HttpContextAccessor
 
 <div class="page">
     <div class="sidebar">
@@ -7,7 +10,22 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <AuthorizeView>
+                <Authorized>
+                    <span class="me-3">👤 @context.User.Identity?.Name</span>
+
+                    <form action="Identity/Account/Logout" method="post" class="d-inline">
+                        <input name="__RequestVerificationToken" type="hidden" value="@GetToken()" />
+                        <button type="submit" class="nav-link btn btn-link">Выйти</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="Identity/Account/Register" class="btn btn-outline-dark btn-sm me-2">Регистрация</a>
+                    <a href="Identity/Account/Login" class="btn btn-primary btn-sm">Войти</a>
+                </NotAuthorized>
+            </AuthorizeView>
+
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank" class="ms-3">About</a>
         </div>
 
         <article class="content px-4">
@@ -21,3 +39,13 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private string? GetToken()
+    {
+        // Получаем токен защиты от CSRF для кнопки выхода
+        return HttpContextAccessor.HttpContext != null
+            ? Antiforgery.GetAndStoreTokens(HttpContextAccessor.HttpContext).RequestToken
+            : null;
+    }
+}

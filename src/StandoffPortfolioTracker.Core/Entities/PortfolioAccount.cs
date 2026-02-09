@@ -16,6 +16,9 @@ namespace StandoffPortfolioTracker.Core.Entities
 
         public string? Description { get; set; } // Как следует из названия переменной - возможность добавлять описание. Либо это будет краткая подпись при наведении на профиль, либо же какая-либо навигация в профиле или т.п.
 
+        // Чей это портфель?
+        public string UserId { get; set; } = string.Empty;
+
         public List<InventoryItem> Items { get; set; } = new();
     }
 }

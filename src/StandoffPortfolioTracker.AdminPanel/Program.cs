@@ -1,47 +1,96 @@
-﻿using Microsoft.AspNetCore.Hosting.Server;
+﻿using Microsoft.AspNetCore.Components.Authorization; // Нужно для Blazor Auth
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.AdminPanel.Components;
 using StandoffPortfolioTracker.Infrastructure;
 using StandoffPortfolioTracker.AdminPanel.Services;
 using ApexCharts;
+using StandoffPortfolioTracker.Core.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Получаем строку подключения из appsettings.json
+// Строка подключения
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Регистрируем фабрику контекста
+// Контекст БД
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
+// 1. ВАЖНО: Добавляем поддержку каскадной аутентификации для Blazor
+builder.Services.AddCascadingAuthenticationState();
+
+// 2. НАСТРОЙКА IDENTITY
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = false; // Для удобства тестов
+    options.Password.RequiredLength = 4;
+})
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>();
+
+// 3. НАСТРОЙКА GOOGLE AUTH
+builder.Services.AddAuthentication()
+    .AddGoogle(googleOptions =>
+    {
+        googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
+        googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+    });
+
+// Твои сервисы
 builder.Services.AddScoped<ItemService>();
 builder.Services.AddScoped<PortfolioService>();
 builder.Services.AddHttpClient<PriceParserService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<WikiParserService>();
-
 builder.Services.AddApexCharts();
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
-
+app.MapStaticAssets();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+// 4. ВАЖНО: Подключаем Middleware авторизации (порядок важен!)
+app.UseAuthentication(); // <-- Обязательно
+app.UseAuthorization();  // <-- Обязательно
+
+// 5. ВАЖНО: Добавляем маппинг Razor Pages (нужно для Identity UI: Логин/Регистрация)
+app.MapRazorPages();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.Run(); 
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+    // 1. Создаем роль Admin, если её нет
+    if (!await roleManager.RoleExistsAsync("Admin"))
+    {
+        await roleManager.CreateAsync(new IdentityRole("Admin"));
+    }
+
+    // 2. Ищем твоего пользователя и выдаем роль
+    var myEmail = "rusgord59@gmail.com";
+    var adminUser = await userManager.FindByEmailAsync(myEmail);
+
+    if (adminUser != null && !await userManager.IsInRoleAsync(adminUser, "Admin"))
+    {
+        await userManager.AddToRoleAsync(adminUser, "Admin");
+    }
+}
+
+
+app.Run();
