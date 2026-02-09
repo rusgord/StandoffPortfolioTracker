@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using StandoffPortfolioTracker.Core.Entities;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Text;
 
 namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
 {
@@ -14,6 +16,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IUserStore<ApplicationUser> _userStore;
+        private readonly IUserEmailStore<ApplicationUser> _emailStore;
         private readonly ILogger<ExternalLoginModel> _logger;
 
         public ExternalLoginModel(
@@ -23,9 +26,11 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
             ILogger<ExternalLoginModel> logger)
         {
             _signInManager = signInManager;
+            
             _userManager = userManager;
             _userStore = userStore;
             _logger = logger;
+            _emailStore = GetEmailStore();
         }
 
         [BindProperty]
@@ -87,6 +92,8 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
         public async Task<IActionResult> OnPostConfirmationAsync(string returnUrl = null)
         {
             returnUrl = returnUrl ?? Url.Content("~/");
+
+            // Получаем информацию от Google
             var info = await _signInManager.GetExternalLoginInfoAsync();
             if (info == null)
             {
@@ -97,8 +104,27 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
             if (ModelState.IsValid)
             {
                 var user = new ApplicationUser();
+
+                // 1. Устанавливаем Email (стандартно)
                 await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
-                user.Email = Input.Email;
+                await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+
+                // =========================================================
+                // 🔥 НОВАЯ ЛОГИКА: ПАРСИМ ДАННЫЕ GOOGLE
+                // =========================================================
+
+                // 2. Достаем Аватарку
+                // После настройки в Program.cs здесь будет URL картинки
+                var pictureUrl = info.Principal.FindFirstValue("picture");
+                if (!string.IsNullOrEmpty(pictureUrl)) user.AvatarUrl = pictureUrl;
+
+                // 3. Достаем Имя (Google обычно передает его в ClaimTypes.Name)
+                var googleName = info.Principal.FindFirstValue(ClaimTypes.Name);
+                if (!string.IsNullOrEmpty(googleName))
+                {
+                    user.DisplayName = googleName;
+                }
+                // =========================================================
 
                 var result = await _userManager.CreateAsync(user);
                 if (result.Succeeded)
@@ -107,6 +133,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
                     if (result.Succeeded)
                     {
                         _logger.LogInformation("User created an account using {Name} provider.", info.LoginProvider);
+
                         await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
                         return LocalRedirect(returnUrl);
                     }
@@ -120,6 +147,14 @@ namespace StandoffPortfolioTracker.AdminPanel.Areas.Identity.Pages.Account
             ProviderDisplayName = info.ProviderDisplayName;
             ReturnUrl = returnUrl;
             return Page();
+        }
+        private IUserEmailStore<ApplicationUser> GetEmailStore()
+        {
+            if (!_userManager.SupportsUserEmail)
+            {
+                throw new NotSupportedException("The default UI requires a user store with email support.");
+            }
+            return (IUserEmailStore<ApplicationUser>)_userStore;
         }
     }
 }

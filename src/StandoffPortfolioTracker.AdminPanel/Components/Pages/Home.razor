@@ -295,7 +295,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         SetupChart();
-        availablePortfolios = await PortfolioService.GetAccountsAsync();
+        availablePortfolios = await PortfolioService.GetMyAccountsAsync();
 
         if (availablePortfolios.Any())
         {

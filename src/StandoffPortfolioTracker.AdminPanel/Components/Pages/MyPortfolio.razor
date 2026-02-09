@@ -954,8 +954,8 @@ else
     private bool isRarityFilterOpen = false;
     private HashSet<int> expandedGroups = new();
     protected override async Task OnInitializedAsync() { allItems = await ItemService.GetAllItemsAsync(); collections = await ItemService.GetCollectionsAsync(); await LoadPortfolios(); FilterItems(); }
-    private async Task LoadPortfolios() { availablePortfolios = await PortfolioService.GetAccountsAsync(); if (availablePortfolios.Any()) { currentPortfolioId = availablePortfolios.First().Id; await LoadInventory(); } }
-    private async Task LoadInventory() { inventory = await PortfolioService.GetInventoryAsync(currentPortfolioId); StateHasChanged(); }
+    private async Task LoadPortfolios() { availablePortfolios = await PortfolioService.GetMyAccountsAsync(); if (availablePortfolios.Any()) { currentPortfolioId = availablePortfolios.First().Id; await LoadInventory(); } }
+    private async Task LoadInventory() { inventory = await PortfolioService.GetMyInventoryAsync(currentPortfolioId); StateHasChanged(); }
     private async Task OnPortfolioChanged() => await LoadInventory();
     private void Sort(string column) { if (sortColumn == column) sortAscending = !sortAscending; else { sortColumn = column; sortAscending = true; } }
     private string SortIcon(string column) { if (sortColumn != column) return "↕"; return sortAscending ? "▲" : "▼"; }

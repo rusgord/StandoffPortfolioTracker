@@ -4,8 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.AdminPanel.Components;
 using StandoffPortfolioTracker.Infrastructure;
 using StandoffPortfolioTracker.AdminPanel.Services;
+using StandoffPortfolioTracker.AdminPanel.Workers;
 using ApexCharts;
 using StandoffPortfolioTracker.Core.Entities;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +30,8 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     options.Password.RequiredLength = 4;
 })
     .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>();
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddClaimsPrincipalFactory<CustomUserClaimsPrincipalFactory>();
 
 // 3. НАСТРОЙКА GOOGLE AUTH
 builder.Services.AddAuthentication()
@@ -35,6 +39,7 @@ builder.Services.AddAuthentication()
     {
         googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
         googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+        googleOptions.ClaimActions.MapJsonKey("picture", "picture");
     });
 
 // Твои сервисы
@@ -43,7 +48,11 @@ builder.Services.AddScoped<PortfolioService>();
 builder.Services.AddHttpClient<PriceParserService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<WikiParserService>();
+builder.Services.AddScoped<BillingService>();
 builder.Services.AddApexCharts();
+builder.Services.AddScoped<ToastService>();
+builder.Services.AddSingleton<GlobalNotificationService>();
+builder.Services.AddHostedService<DonationWorker>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -58,6 +67,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapStaticAssets();
+app.UseStaticFiles();
 app.UseAntiforgery();
 
 // 4. ВАЖНО: Подключаем Middleware авторизации (порядок важен!)
@@ -82,7 +92,7 @@ using (var scope = app.Services.CreateScope())
         await roleManager.CreateAsync(new IdentityRole("Admin"));
     }
 
-    // 2. Ищем твоего пользователя и выдаем роль
+    // 2. Ищем пользователя и выдаем роль
     var myEmail = "rusgord59@gmail.com";
     var adminUser = await userManager.FindByEmailAsync(myEmail);
 

@@ -1,30 +1,51 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">StandoffPortfolioTracker.AdminPanel</a>
-    </div>
+﻿<div class="sidebar-header">
+    <a class="navbar-brand" href="">
+        <i class="bi bi-graph-up-arrow text-warning"></i>
+        <span>STANDOFF TRACKER</span>
+    </a>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
+<div class="nav-scrollable">
+    <nav class="flex-column">
+        
+        <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <i class="bi bi-speedometer2"></i> Dashboard
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
+        <div class="nav-item">
             <NavLink class="nav-link" href="portfolio">
-                <span class="bi bi-briefcase-fill" aria-hidden="true"></span> Портфель
+                <i class="bi bi-briefcase-fill"></i> Портфель
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="market-editor">
-                <span class="bi bi-list-ul" aria-hidden="true"></span> Справочник
+        <div class="nav-divider">СЕРВИСЫ</div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="market">
+                <i class="bi bi-shop"></i> 
+                <span class="flex-grow-1">Рынок</span>
+                <span class="badge-premium">PRO</span>
             </NavLink>
         </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="help">
+                <i class="bi bi-question-circle"></i> Справка
+            </NavLink>
+        </div>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="nav-divider">ADMIN PANEL</div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="market-editor">
+                        <i class="bi bi-database-gear"></i> Редактор БД
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
     </nav>
 </div>
-

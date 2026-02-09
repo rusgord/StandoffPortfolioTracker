@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StandoffPortfolioTracker.Infrastructure;
 
@@ -11,9 +12,11 @@ using StandoffPortfolioTracker.Infrastructure;
 namespace StandoffPortfolioTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260209012946_UserProfileFields")]
+    partial class UserProfileFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -169,14 +172,8 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("longtext");
 
-                    b.Property<decimal>("Balance")
-                        .HasColumnType("decimal(65,30)");
-
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("DisplayName")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Email")
@@ -217,9 +214,6 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
 
                     b.Property<decimal>("PortfolioGoal")
                         .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime?>("ProExpirationDate")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("longtext");
@@ -435,41 +429,6 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.ToTable("PortfolioAccounts");
                 });
 
-            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.WalletTransaction", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ExternalSystem")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ExternalTransactionId")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("WalletTransactions");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -579,17 +538,6 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ItemBase");
-                });
-
-            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.WalletTransaction", b =>
-                {
-                    b.HasOne("StandoffPortfolioTracker.Core.Entities.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.GameCollection", b =>

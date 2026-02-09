@@ -1,0 +1,571 @@
+﻿@page "/billing"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.AdminPanel.Services
+@using System.Security.Claims
+@using Microsoft.Extensions.DependencyInjection
+@using System.Text.Json
+@using StandoffPortfolioTracker.Infrastructure
+@inject IServiceScopeFactory ScopeFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ToastService ToastService
+@inject GlobalNotificationService GlobalNotifier
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<div class="container-fluid" style="max-width: 1100px;">
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-lg text-white mb-4 overflow-hidden position-relative"
+                 style="background: linear-gradient(135deg, #1a1d21 0%, #212529 100%); border-radius: 20px; min-height: 320px;">
+
+                <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(255,193,7,0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%;"></div>
+                <div style="position: absolute; bottom: -30px; left: -30px; width: 120px; height: 120px; background: radial-gradient(circle, rgba(13,110,253,0.2) 0%, rgba(0,0,0,0) 70%); border-radius: 50%;"></div>
+
+                <div class="card-body p-4 d-flex flex-column justify-content-between position-relative" style="z-index: 1;">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="text-white-50 text-uppercase ls-1 mb-0"><i class="bi bi-wallet2 me-2"></i>Баланс</h6>
+                            <span class="badge bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-normal" title="Ваш ID">
+                                ID: @userId.Substring(0, Math.Min(8, userId.Length))...
+                            </span>
+                        </div>
+                        <div class="mt-3">
+                            <h1 class="display-4 fw-bold text-warning mb-0">
+                                @userBalance.ToString("N0") <span class="fs-5 text-white-50">G</span>
+                            </h1>
+                            <div class="small text-white-50">≈ @((userBalance * 1).ToString("N2")) RUB</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="bg-white bg-opacity-10 rounded-3 p-3 backdrop-blur">
+                            <label class="small text-white-50 mb-2 d-block">Пополнить счет</label>
+
+                            <div class="input-group mb-2">
+                                <input type="number" class="form-control bg-transparent text-white border-secondary fw-bold"
+                                       placeholder="100" @bind="topUpAmount" @bind:event="oninput" min="10"
+                                       style="border-right: none;" />
+                                <span class="input-group-text bg-transparent text-warning border-secondary fw-bold" style="border-left: none; border-right: none;">G</span>
+
+                                <select class="form-select bg-dark text-white border-secondary" style="max-width: 90px;"
+                                        @bind="selectedCurrency" @bind:after="UpdateCost">
+                                    @foreach (var curr in currencies)
+                                    {
+                                        <option value="@curr.Key">@curr.Key</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="small text-white-50">К оплате:</span>
+                                <span class="fw-bold text-white">
+                                    @currentCost.ToString("N2") @GetCurrencySymbol(selectedCurrency)
+                                </span>
+                            </div>
+
+                            <button class="btn btn-warning w-100 fw-bold shadow-sm py-2" @onclick="ShowPaymentModal">
+                                Пополнить сейчас <i class="bi bi-arrow-right-short"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-none d-lg-block">
+                <h6 class="text-muted fw-bold mb-3 ms-2">История операций</h6>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush rounded-4" style="max-height: 400px; overflow-y: auto;">
+                            @if (history.Any())
+                            {
+                                @foreach (var t in history.Take(7))
+                                {
+                                    <div class="list-group-item border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="rounded-circle p-2 @(t.Amount > 0 ? "bg-success" : "bg-primary") bg-opacity-10 text-@(t.Amount > 0 ? "success" : "primary")">
+                                                <i class="bi @(t.Amount > 0 ? "bi-arrow-down-left" : "bi-arrow-up-right")"></i>
+                                            </div>
+                                            <div style="line-height: 1.2;">
+                                                <div class="fw-bold text-dark text-truncate" style="max-width: 150px; font-size: 0.85rem;">@t.Description</div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">@t.Date.ToLocalTime().ToString("dd.MM HH:mm")</div>
+                                            </div>
+                                        </div>
+                                        <div class="fw-bold @(t.Amount > 0 ? "text-success" : "text-dark")" style="font-size: 0.9rem;">
+                                            @(t.Amount > 0 ? "+" : "")@t.Amount.ToString("N0")
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="p-4 text-center text-muted small">История пуста</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <h4 class="fw-bold text-dark mb-4"><i class="bi bi-stars text-warning"></i> Premium Подписка</h4>
+
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm bg-white rounded-4 overflow-hidden">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3">Что дает Premium:</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled mb-0 d-grid gap-2">
+                                        <li class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span><strong>Неограниченное</strong> кол-во портфолио</span>
+                                        </li>
+                                        <li class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span><strong>Более 50</strong> предметов (до 150)</span>
+                                        </li>
+                                        <li class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span>Расширенная <strong>аналитика</strong></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled mb-0 d-grid gap-2">
+                                        <li class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span>Оповещения о <strong>бустах</strong> рынка</span>
+                                        </li>
+                                        <li class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span>Полный доступ к <strong>Рынку</strong></span>
+                                        </li>
+                                        <li class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span><strong>PRO</strong> бейдж и кастомизация</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm @(isPro ? "bg-primary bg-opacity-10" : "bg-light") p-3 rounded-4">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-white p-3 rounded-circle shadow-sm text-primary">
+                                    <i class="bi @(isPro ? "bi-award-fill" : "bi-lock-fill") fs-4"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-primary mb-1">Ваш статус: @(isPro ? "PREMIUM" : "Basic")</div>
+                                    @if (isPro)
+                                    {
+                                        <div class="badge bg-primary text-white px-3 py-2 rounded-pill">
+                                            Активен до @proExpiration?.ToString("dd.MM.yyyy")
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-muted small">Выберите план для апгрейда</div>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (isPro)
+                            {
+                                <div class="d-flex align-items-center gap-3 bg-white px-3 py-2 rounded-pill shadow-sm">
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="autoRenew" checked="@isAutoRenew" @onchange="ToggleAutoRenewal">
+                                        <label class="form-check-label small fw-bold text-muted user-select-none" for="autoRenew">Автопродление</label>
+                                    </div>
+                                    <div class="vr"></div>
+                                    <button class="btn btn-link text-danger text-decoration-none p-0 small fw-bold" @onclick="CancelSubscription" style="font-size: 0.85rem;">
+                                        Отменить
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 text-center p-3 hover-scale transition">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="fw-bold text-secondary">1 Месяц</h5>
+                            <h2 class="fw-bold text-dark my-3">250 <span class="fs-6 text-warning">G</span></h2>
+                            <div class="mt-auto">
+                                <button class="btn btn-outline-dark w-100 rounded-pill" @onclick="() => BuyPro(30, 250)">Выбрать</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow rounded-4 text-center p-3 hover-scale transition position-relative bg-primary text-white">
+                        <div class="position-absolute top-0 start-50 translate-middle badge bg-warning text-dark border border-2 border-white px-3 shadow-sm">ВЫГОДНО 🔥</div>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="fw-bold text-white-50 mt-2">3 Месяца</h5>
+                            <h2 class="fw-bold text-white my-3">700 <span class="fs-6 text-warning">G</span></h2>
+                            <div class="small text-white-50 mb-3 text-decoration-line-through">750 G</div>
+                            <div class="mt-auto">
+                                <button class="btn btn-light w-100 rounded-pill fw-bold text-primary" @onclick="() => BuyPro(90, 700)">Выбрать</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 text-center p-3 hover-scale transition" style="border: 2px solid #ffc107;">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="fw-bold text-gold">1 Год</h5>
+                            <h2 class="fw-bold text-dark my-3">2400 <span class="fs-6 text-warning">G</span></h2>
+                            <div class="small text-muted mb-3">Всего 200 G/мес</div>
+                            <div class="mt-auto">
+                                <button class="btn btn-outline-warning w-100 rounded-pill text-dark fw-bold" @onclick="() => BuyPro(365, 2400)">Выбрать</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <AuthorizeView Roles="Admin">
+        <div class="row mt-5 mb-5">
+            <div class="col-12">
+                <div class="card border-danger shadow-sm">
+                    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                        <span class="fw-bold"><i class="bi bi-joystick"></i> Симулятор DonationAlerts (Admin Zone)</span>
+                    </div>
+                    <div class="card-body bg-light">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">1. Получатель</label>
+                                <select class="form-select" @bind="testSelectedUserId" @bind:after="UpdateTestJson">
+                                    <option value="">-- Выбрать --</option>
+                                    @foreach (var u in allUsers)
+                                    {
+                                        <option value="@u.Id">@u.Email</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">2. Сумма доната</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" @bind="testAmount" @bind:after="UpdateTestJson" />
+                                    <select class="form-select" @bind="testCurrency" @bind:after="UpdateTestJson" style="max-width: 100px;">
+                                        <option value="RUB">RUB</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="KZT">KZT</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">3. JSON Payload</label>
+                                <textarea class="form-control font-monospace small" rows="3" @bind="testJsonPayload"></textarea>
+                            </div>
+
+                            <div class="col-md-12 text-end">
+                                <button class="btn btn-danger fw-bold" @onclick="RunSimulation">
+                                    <i class="bi bi-play-fill"></i> Отправить Webhook
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthorizeView>
+
+</div>
+
+@if (showPaymentModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-light border-0">
+                    <h5 class="modal-title fw-bold">🚀 Пополнение баланса</h5>
+                    <button type="button" class="btn-close" @onclick="() => showPaymentModal = false"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-4">
+                        <div class="fs-1">💎</div>
+                        <h3 class="fw-bold">@topUpAmount G</h3>
+                        <p class="text-muted">
+                            К оплате: <strong>@currentCost.ToString("N2") @selectedCurrency</strong>
+                        </p>
+                    </div>
+
+                    <div class="alert alert-warning text-start small border-0 bg-warning bg-opacity-10 text-dark">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        <strong>Важно:</strong> При оплате убедитесь, что в поле "Сообщение" указан ваш ID.
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 mb-4 border d-flex align-items-center justify-content-between">
+                        <div class="text-start overflow-hidden">
+                            <div class="small text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Ваш ID для пополнения</div>
+                            <code class="fw-bold text-dark">ID:@userId</code>
+                        </div>
+                        <button class="btn btn-white border shadow-sm btn-sm" @onclick="CopyIdToClipboard">
+                            <i class="bi bi-files"></i> Коп.
+                        </button>
+                    </div>
+
+                    <button class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm" @onclick="ProceedToDonationAlerts">
+                        Перейти к оплате <i class="bi bi-box-arrow-up-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .backdrop-blur {
+        backdrop-filter: blur(10px);
+    }
+
+    .ls-1 {
+        letter-spacing: 1px;
+    }
+
+    .text-gold {
+        color: #d4af37;
+    }
+
+    .hover-scale {
+        transition: transform 0.2s;
+    }
+
+        .hover-scale:hover {
+            transform: translateY(-5px);
+        }
+
+    .transition {
+        transition: all 0.3s ease;
+    }
+</style>
+
+<script>
+    window.copyText = (text) => {
+        navigator.clipboard.writeText(text).catch(err => console.error('Error copying text: ', err));
+    }
+</script>
+
+@code {
+    private decimal userBalance;
+    private bool isPro;
+    private DateTime? proExpiration;
+    private string userId = "";
+    private List<WalletTransaction> history = new();
+
+    // Настройки подписки (Локальные, т.к. бэкенд для них не готов в этом контексте)
+    private bool isAutoRenew = true;
+
+    private int topUpAmount = 100;
+    private bool showPaymentModal = false;
+    private string selectedCurrency = "RUB";
+    private decimal currentCost = 100;
+
+    // === ДАННЫЕ ДЛЯ АДМИНКИ ===
+    private List<ApplicationUser> allUsers = new();
+    private string testSelectedUserId = "";
+    private decimal testAmount = 100;
+    private string testCurrency = "RUB";
+    private string testJsonPayload = "";
+
+    private Dictionary<string, decimal> currencies = new()
+    {
+        { "RUB", 1.0m }, { "USD", 0.011m }, { "EUR", 0.010m }, { "UAH", 0.45m }, { "KZT", 5.0m }
+    };
+
+    private string GetCurrencySymbol(string code) => code switch
+    { "RUB" => "₽", "USD" => "$", "EUR" => "€", "UAH" => "₴", "KZT" => "₸", _ => code };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        UpdateCost();
+        await LoadData();
+
+        if (authState.User.IsInRole("Admin"))
+        {
+            await LoadAllUsers();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        using (var scope = ScopeFactory.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var billingService = scope.ServiceProvider.GetRequiredService<BillingService>();
+
+            var user = await userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                userBalance = user.Balance;
+                isPro = user.IsPro;
+                proExpiration = user.ProExpirationDate;
+                history = await billingService.GetHistoryAsync(userId);
+            }
+        }
+    }
+
+    private async Task LoadAllUsers()
+    {
+        using var scope = ScopeFactory.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        allUsers = userManager.Users.ToList();
+    }
+
+    private void UpdateCost()
+    {
+        if (currencies.TryGetValue(selectedCurrency, out decimal rate))
+        {
+            currentCost = topUpAmount * rate;
+        }
+    }
+
+    // === ЛОГИКА ПОКУПКИ PRO ===
+    private async Task BuyPro(int days, decimal cost)
+    {
+        using (var scope = ScopeFactory.CreateScope())
+        {
+            var billingService = scope.ServiceProvider.GetRequiredService<BillingService>();
+            var result = await billingService.BuyProSubscriptionAsync(userId, days, cost);
+
+            if (result.Success)
+            {
+                GlobalNotifier.NotifyUser(userId, result.Message, ToastLevel.Success);
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowToast(result.Message, ToastLevel.Error);
+            }
+        }
+    }
+
+    // === УПРАВЛЕНИЕ ПОДПИСКОЙ (MOCK) ===
+    private void ToggleAutoRenewal()
+    {
+        isAutoRenew = !isAutoRenew;
+        // Здесь должен быть вызов к API для сохранения настройки
+        ToastService.ShowToast($"Автопродление {(isAutoRenew ? "включено" : "выключено")}", ToastLevel.Info);
+    }
+
+    private void CancelSubscription()
+    {
+        // Здесь должна быть логика отмены (например, установка флага в БД)
+        ToastService.ShowToast("Подписка будет отменена в конце периода", ToastLevel.Warning);
+    }
+
+    // === ЛОГИКА РЕАЛЬНОГО ПОПОЛНЕНИЯ ===
+    private void ShowPaymentModal() { if (topUpAmount < 10) return; showPaymentModal = true; }
+    private async Task CopyIdToClipboard() { await JS.InvokeVoidAsync("copyText", $"ID:{userId}"); }
+
+    private async Task ProceedToDonationAlerts()
+    {
+        string daNickname = "gordan_playm";
+        await CopyIdToClipboard();
+        string amountStr = currentCost.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        string url = $"https://www.donationalerts.com/r/{daNickname}?amount={amountStr}&currency={selectedCurrency}&message=ID:{userId}";
+        Nav.NavigateTo(url, forceLoad: true);
+        showPaymentModal = false;
+    }
+
+    // === 🛠 ЛОГИКА СИМУЛЯТОРА (ADMIN) ===
+    private void UpdateTestJson()
+    {
+        int fakeTxId = new Random().Next(100000, 999999);
+        testJsonPayload = $@"
+{{
+    ""id"": {fakeTxId},
+    ""name"": ""Test Simulator"",
+    ""username"": ""Test Simulator"",
+    ""message"": ""Привет! Вот мой ID:{testSelectedUserId}"",
+    ""message_type"": ""text"",
+    ""amount"": {testAmount},
+    ""currency"": ""{testCurrency}"",
+    ""is_shown"": 1,
+    ""created_at"": ""{DateTime.Now:yyyy-MM-dd HH:mm:ss}"",
+    ""shown_at"": null
+}}";
+    }
+
+    private async Task RunSimulation()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(testJsonPayload))
+            {
+                ToastService.ShowToast("JSON пуст!", ToastLevel.Error);
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(testJsonPayload);
+            var root = doc.RootElement;
+
+            string msg = root.GetProperty("message").GetString() ?? "";
+            decimal amount = root.GetProperty("amount").GetDecimal();
+            string currency = root.GetProperty("currency").GetString() ?? "RUB";
+            string externalId = root.GetProperty("id").GetInt32().ToString();
+
+            string? targetId = FindUserIdInMessage(msg);
+            if (string.IsNullOrEmpty(targetId))
+            {
+                ToastService.ShowToast("Не удалось найти ID пользователя", ToastLevel.Warning);
+                return;
+            }
+
+            // Конвертация
+            decimal goldAmount = amount;
+            if (currency == "USD") goldAmount = amount * 90;
+            if (currency == "EUR") goldAmount = amount * 100;
+            if (currency == "KZT") goldAmount = amount * 0.2m;
+
+            using var scope = ScopeFactory.CreateScope();
+            var billing = scope.ServiceProvider.GetRequiredService<BillingService>();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var user = await context.Users.FindAsync(targetId);
+            if (user == null) { ToastService.ShowToast("Пользователь не найден", ToastLevel.Error); return; }
+
+            await billing.AddBalanceAsync(targetId, goldAmount, $"DonationAlerts ({currency}) ID:{externalId} [SIMULATION]");
+
+            GlobalNotifier.NotifyUser(targetId, $"✅ Баланс пополнен: +{goldAmount:N0} G", ToastLevel.Success);
+            ToastService.ShowToast($"Отправлено пользователю {targetId}", ToastLevel.Info);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowToast($"Ошибка JSON: {ex.Message}", ToastLevel.Error);
+        }
+    }
+
+    private string? FindUserIdInMessage(string msg)
+    {
+        if (string.IsNullOrWhiteSpace(msg)) return null;
+        var words = msg.Split(new[] { ' ', '\n', ',', ':' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
+        {
+            if (Guid.TryParse(word, out _)) return word;
+        }
+        return null;
+    }
+}

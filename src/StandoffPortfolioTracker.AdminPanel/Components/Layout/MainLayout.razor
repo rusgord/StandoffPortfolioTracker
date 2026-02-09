@@ -1,7 +1,18 @@
 ﻿@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.AdminPanel.Services
+@using StandoffPortfolioTracker.AdminPanel.Components.Shared
+@using Microsoft.Extensions.DependencyInjection
+
+@inject IServiceScopeFactory ScopeFactory
+@inject AuthenticationStateProvider AuthStateProvider
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavManager
+@inject ToastService ToastService          // Локальный тост
+@inject GlobalNotificationService GlobalNotifier // 🔥 Глобальный сервис
 
 <div class="page">
     <div class="sidebar">
@@ -9,43 +20,116 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <AuthorizeView>
-                <Authorized>
-                    <span class="me-3">👤 @context.User.Identity?.Name</span>
+        <div class="top-row">
+            <div class="d-md-none"></div>
+            <div class="d-flex align-items-center gap-3 ms-auto">
+                <AuthorizeView>
+                    <Authorized>
+                        <a href="billing" class="btn btn-light border rounded-pill px-3 d-flex align-items-center gap-2 text-decoration-none shadow-sm" title="Пополнить баланс">
+                            <span class="fw-bold text-dark">@currentBalance.ToString("N0")</span>
+                            <i class="bi bi-coin text-warning fs-5"></i>
+                        </a>
 
-                    <form action="Identity/Account/Logout" method="post" class="d-inline">
-                        <input name="__RequestVerificationToken" type="hidden" value="@GetToken()" />
-                        <button type="submit" class="nav-link btn btn-link">Выйти</button>
-                    </form>
-                </Authorized>
-                <NotAuthorized>
-                    <a href="Identity/Account/Register" class="btn btn-outline-dark btn-sm me-2">Регистрация</a>
-                    <a href="Identity/Account/Login" class="btn btn-primary btn-sm">Войти</a>
-                </NotAuthorized>
-            </AuthorizeView>
+                        <div class="vr mx-2" style="height: 25px; opacity: 0.2;"></div>
 
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank" class="ms-3">About</a>
+                        <a href="settings" class="d-flex align-items-center gap-2 text-decoration-none text-secondary user-select-none">
+                            <div class="rounded-circle border d-flex align-items-center justify-content-center overflow-hidden bg-light text-secondary" style="width:38px; height:38px; flex-shrink: 0;">
+                                @if (!string.IsNullOrEmpty(currentAvatarUrl))
+                                {
+                                    <img src="@currentAvatarUrl" alt="Avatar" style="width:100%; height:100%; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-fill fs-5"></i>
+                                }
+                            </div>
+                            <span class="fw-bold d-none d-md-block" style="font-size: 0.9rem; color: #4e73df;">@currentDisplayName</span>
+                        </a>
+
+                        <div class="vr mx-2" style="height: 25px; opacity: 0.2;"></div>
+
+                        <form action="Identity/Account/Logout" method="post" class="d-inline">
+                            <input name="__RequestVerificationToken" type="hidden" value="@GetToken()" />
+                            <input name="returnUrl" type="hidden" value="/" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-2" style="border-radius: 8px; padding: 6px 12px;">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="d-flex gap-2">
+                            <a href="Identity/Account/Login" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">Войти</a>
+                            <a href="Identity/Account/Register" class="btn btn-outline-dark btn-sm rounded-pill px-4 fw-bold">Регистрация</a>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
 
-        <article class="content px-4">
+        <article class="content">
             @Body
         </article>
     </main>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
+<Toast @rendermode="InteractiveServer" />
+
+<div id="blazor-error-ui">
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
 
 @code {
+    private string? currentAvatarUrl;
+    private string? currentDisplayName;
+    private decimal currentBalance = 0;
+    private string myUserId = ""; // Храним ID текущего юзера
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Загружаем данные
+        await LoadUserData();
+
+    }
+
+    // Обработчик события (прилетает, когда КТО-ТО на сервере получает уведомление)
+    
+
+    private async Task LoadUserData()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            using (var scope = ScopeFactory.CreateScope())
+            {
+                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+                myUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+                if (!string.IsNullOrEmpty(myUserId))
+                {
+                    // ВАЖНО: FindByIdAsync берет данные из базы, а не из куки,
+                    // поэтому баланс будет свежим.
+                    var appUser = await userManager.FindByIdAsync(myUserId);
+                    if (appUser != null)
+                    {
+                        currentAvatarUrl = appUser.AvatarUrl;
+                        currentDisplayName = !string.IsNullOrEmpty(appUser.DisplayName) ? appUser.DisplayName : appUser.UserName;
+                        currentBalance = appUser.Balance;
+                    }
+                }
+            }
+        }
+    }
+
     private string? GetToken()
     {
-        // Получаем токен защиты от CSRF для кнопки выхода
         return HttpContextAccessor.HttpContext != null
             ? Antiforgery.GetAndStoreTokens(HttpContextAccessor.HttpContext).RequestToken
             : null;
     }
+
+
 }

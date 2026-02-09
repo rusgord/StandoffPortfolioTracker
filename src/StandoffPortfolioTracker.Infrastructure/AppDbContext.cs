@@ -15,7 +15,8 @@ namespace StandoffPortfolioTracker.Infrastructure
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
-
+        // === Таблица Кошелька ===
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
         // === Таблицы Справочников ===
         public DbSet<GameCollection> GameCollections { get; set; }
         public DbSet<ItemBase> ItemBases { get; set; }

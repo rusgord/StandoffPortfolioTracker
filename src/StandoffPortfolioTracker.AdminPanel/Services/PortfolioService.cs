@@ -9,7 +9,7 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
     public class PortfolioService
     {
         private readonly IDbContextFactory<AppDbContext> _factory;
-        private readonly AuthenticationStateProvider _authProvider; // Для получения текущего юзера
+        private readonly AuthenticationStateProvider _authProvider;
 
         public PortfolioService(IDbContextFactory<AppDbContext> factory, AuthenticationStateProvider authProvider)
         {
@@ -17,48 +17,115 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             _authProvider = authProvider;
         }
 
-        // Хелпер: Получить ID текущего пользователя
+        // Helper: Get Current User ID (Only works in standard SignalR scope)
         private async Task<string?> GetCurrentUserId()
         {
-            var authState = await _authProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-
-            if (user.Identity != null && user.Identity.IsAuthenticated)
+            try
             {
-                // Ищем Claim с ID пользователя
-                return user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var authState = await _authProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                if (user.Identity != null && user.Identity.IsAuthenticated)
+                {
+                    return user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                }
+            }
+            catch
+            {
+                // If called from a background Scope, this might fail. Return null.
+                return null;
             }
             return null;
         }
 
-        // === 1. Управление портфелями (С ФИЛЬТРОМ ПО ЮЗЕРУ) ===
+        // =========================================================
+        // 1. METHODS FOR "MY PORTFOLIO" PAGE (Secure, checks Auth)
+        // =========================================================
 
-        public async Task<List<PortfolioAccount>> GetAccountsAsync()
+        public async Task<List<PortfolioAccount>> GetMyAccountsAsync()
         {
             var userId = await GetCurrentUserId();
-            if (userId == null) return new List<PortfolioAccount>(); // Если не вошел — список пуст
+            if (userId == null) return new List<PortfolioAccount>();
 
             using var context = await _factory.CreateDbContextAsync();
-
-            // Грузим только портфели ЭТОГО пользователя
             return await context.PortfolioAccounts
                 .Where(p => p.UserId == userId)
                 .ToListAsync();
         }
 
+        public async Task<List<InventoryItem>> GetMyInventoryAsync(int portfolioId)
+        {
+            var userId = await GetCurrentUserId();
+            if (userId == null) return new List<InventoryItem>();
+
+            using var context = await _factory.CreateDbContextAsync();
+
+            // Verify ownership
+            var isOwner = await context.PortfolioAccounts
+                .AnyAsync(p => p.Id == portfolioId && p.UserId == userId);
+
+            if (!isOwner) return new List<InventoryItem>();
+
+            return await context.InventoryItems
+                .Include(i => i.ItemBase).ThenInclude(ib => ib.Collection)
+                .Include(i => i.Attachments).ThenInclude(a => a.Sticker)
+                .Where(i => i.PortfolioAccountId == portfolioId)
+                .OrderByDescending(i => i.PurchaseDate)
+                .ToListAsync();
+        }
+
+        // =========================================================
+        // 2. METHODS FOR "USER PROFILE" PAGE (Public/Read-Only)
+        //    These DO NOT check AuthState. Logic is handled by the caller.
+        // =========================================================
+
+        public async Task<List<PortfolioAccount>> GetPortfoliosByUserAsync(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return new List<PortfolioAccount>();
+
+            using var context = await _factory.CreateDbContextAsync();
+
+            return await context.PortfolioAccounts
+                .AsNoTracking()
+                .Where(p => p.UserId == userId)
+                .ToListAsync();
+        }
+
+        public async Task<List<InventoryItem>> GetInventoryReadOnlyAsync(int portfolioId)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+
+            return await context.InventoryItems
+                .Include(i => i.ItemBase)
+                .AsNoTracking() // Faster for stats
+                .Where(i => i.PortfolioAccountId == portfolioId)
+                .ToListAsync();
+        }
+
+        // This method you were using in UserProfile needs to be "dumb"
+        // I renamed it above to GetInventoryReadOnlyAsync to be clear, 
+        // but to keep compatibility with your UserProfile code, I'll alias it:
+        public async Task<List<InventoryItem>> GetInventoryAsync(int portfolioId)
+        {
+            // Just forward to the simple method
+            return await GetInventoryReadOnlyAsync(portfolioId);
+        }
+
+        // =========================================================
+        // 3. WRITES (Create/Update/Delete) - Always need Auth
+        // =========================================================
+
         public async Task CreateAccountAsync(string name, string? description = null)
         {
             var userId = await GetCurrentUserId();
-            if (userId == null) return; // Нельзя создать без входа
+            if (userId == null) return;
 
             using var context = await _factory.CreateDbContextAsync();
-            var newAccount = new PortfolioAccount
+            context.PortfolioAccounts.Add(new PortfolioAccount
             {
                 Name = name,
                 Description = description,
-                UserId = userId // Привязываем к текущему юзеру
-            };
-            context.PortfolioAccounts.Add(newAccount);
+                UserId = userId
+            });
             await context.SaveChangesAsync();
         }
 
@@ -68,51 +135,20 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             if (userId == null) return;
 
             using var context = await _factory.CreateDbContextAsync();
-
-            // Проверяем, что удаляем СВОЙ портфель
             var account = await context.PortfolioAccounts
                 .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
 
             if (account != null)
             {
-                // Удаляем связанные предметы (если каскад не сработает)
                 var items = context.InventoryItems.Where(i => i.PortfolioAccountId == id);
                 context.InventoryItems.RemoveRange(items);
-
                 context.PortfolioAccounts.Remove(account);
                 await context.SaveChangesAsync();
             }
         }
 
-        // === 2. Работа с инвентарем (С ПРОВЕРКОЙ ДОСТУПА) ===
-
-        public async Task<List<InventoryItem>> GetInventoryAsync(int portfolioId)
-        {
-            var userId = await GetCurrentUserId();
-            if (userId == null) return new List<InventoryItem>();
-
-            using var context = await _factory.CreateDbContextAsync();
-
-            var isMyPortfolio = await context.PortfolioAccounts
-                .AnyAsync(p => p.Id == portfolioId && p.UserId == userId);
-
-            if (!isMyPortfolio) return new List<InventoryItem>();
-
-            return await context.InventoryItems
-                .Include(i => i.ItemBase)
-                    .ThenInclude(ib => ib.Collection)
-                // Грузим список наклеек
-                .Include(i => i.Attachments)
-                    // Грузим данные самой наклейки (цену, картинку)
-                    .ThenInclude(a => a.Sticker)
-                .Where(i => i.PortfolioAccountId == portfolioId)
-                .OrderByDescending(i => i.PurchaseDate)
-                .ToListAsync();
-        }
-
         public async Task AddPurchaseAsync(InventoryItem item)
         {
-            // Здесь тоже можно добавить проверку на владельца портфеля, но пока пропустим для краткости
             using var context = await _factory.CreateDbContextAsync();
             context.InventoryItems.Add(item);
             await context.SaveChangesAsync();
@@ -133,23 +169,16 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
         public async Task SaveAttachmentsAsync(int inventoryItemId, List<AppliedAttachment> newAttachments)
         {
             using var context = await _factory.CreateDbContextAsync();
-
-            // 1. Ищем старые наклейки для этого предмета
             var existing = context.AppliedAttachments.Where(x => x.InventoryItemId == inventoryItemId);
-
-            // 2. Удаляем их
             context.AppliedAttachments.RemoveRange(existing);
 
-            // 3. Добавляем новые из списка
             foreach (var att in newAttachments)
             {
-                att.Id = 0; // Сбрасываем ID, чтобы база создала новые записи
-                att.InventoryItemId = inventoryItemId; // Привязываем к оружию
-                att.Sticker = null; // Обнуляем объект стикера, оставляем только StickerId, чтобы EF не пытался создать стикер заново
-
+                att.Id = 0;
+                att.InventoryItemId = inventoryItemId;
+                att.Sticker = null;
                 context.AppliedAttachments.Add(att);
             }
-
             await context.SaveChangesAsync();
         }
 
