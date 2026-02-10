@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.Core.Entities;
+using StandoffPortfolioTracker.Core.Enums;
 using StandoffPortfolioTracker.Infrastructure;
 
 namespace StandoffPortfolioTracker.AdminPanel.Services
@@ -13,48 +14,62 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
             _factory = factory;
         }
 
-        // 1. Покупка PRO подписки
-        public async Task<(bool Success, string Message)> BuyProSubscriptionAsync(string userId, int days, decimal cost)
+        // Возвращаем (Success, Message, NewBalance)
+        public async Task<(bool Success, string Message, decimal? NewBalance)> BuySubscriptionAsync(string userId, int days, decimal cost, SubscriptionType type)
         {
             using var context = await _factory.CreateDbContextAsync();
-
             var user = await context.Users.FindAsync(userId);
-            if (user == null) return (false, "Пользователь не найден");
+            if (user == null) return (false, "Пользователь не найден", null);
+
+            // Логика смены тарифа
+            if (user.IsPro && user.SubType != type)
+            {
+                // Понижение (Premium -> Lite) ЗАПРЕЩЕНО
+                if (user.SubType == SubscriptionType.Premium && type == SubscriptionType.Lite)
+                {
+                    return (false, "Сначала дождитесь окончания Premium подписки.", user.Balance);
+                }
+                // Повышение (Lite -> Premium) РАЗРЕШЕНО -> код идет дальше
+            }
 
             if (user.Balance < cost)
             {
-                return (false, "Недостаточно Gold на балансе");
+                return (false, "Недостаточно Gold на балансе", user.Balance);
             }
 
-            // Списываем баланс
+            // 1. Списываем средства
             user.Balance -= cost;
 
-            // Продлеваем подписку
-            if (user.IsPro)
+            // 2. Обновляем подписку
+            if (user.IsPro && user.SubType == type)
             {
-                // Если уже есть - добавляем к текущей дате
+                // Продление того же тарифа
                 user.ProExpirationDate = user.ProExpirationDate!.Value.AddDays(days);
             }
             else
             {
-                // Если нет - ставим от текущего момента
+                // Новый тариф или Апгрейд (Lite -> Premium)
+                // Срок считается от СЕГОДНЯ (старый остаток Lite сгорает при апгрейде)
+                user.SubType = type;
                 user.ProExpirationDate = DateTime.UtcNow.AddDays(days);
             }
 
-            // Записываем в историю
+            user.IsAutoRenew = true;
+
             context.WalletTransactions.Add(new WalletTransaction
             {
                 UserId = userId,
                 Amount = -cost,
-                Description = $"Покупка PRO на {days} дней",
+                Description = $"Оплата {type} ({days} дн.)",
                 Date = DateTime.UtcNow
             });
 
             await context.SaveChangesAsync();
-            return (true, $"Успешно! PRO продлен до {user.ProExpirationDate.Value:d}");
+
+            // Возвращаем новый баланс, чтобы обновить шапку мгновенно
+            return (true, $"Тариф {type} активирован!", user.Balance);
         }
 
-        // 2. Начисление баланса (админом или системой оплаты)
         public async Task AddBalanceAsync(string userId, decimal amount, string reason)
         {
             using var context = await _factory.CreateDbContextAsync();
@@ -72,16 +87,22 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 await context.SaveChangesAsync();
             }
         }
+        public async Task SetAutoRenewAsync(string userId, bool isActive)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var user = await context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.IsAutoRenew = isActive;
+                await context.SaveChangesAsync();
+            }
+        }
 
-        // 3. Получить историю операций
         public async Task<List<WalletTransaction>> GetHistoryAsync(string userId)
         {
             using var context = await _factory.CreateDbContextAsync();
-            return await context.WalletTransactions
-                .AsNoTracking()
-                .Where(t => t.UserId == userId)
-                .OrderByDescending(t => t.Date)
-                .ToListAsync();
+            return await context.WalletTransactions.AsNoTracking()
+                .Where(t => t.UserId == userId).OrderByDescending(t => t.Date).ToListAsync();
         }
     }
 }

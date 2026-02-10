@@ -1,162 +1,341 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using StandoffPortfolioTracker.Core.Entities
 @using StandoffPortfolioTracker.Core.Enums
 @using StandoffPortfolioTracker.AdminPanel.Services
 @using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @attribute [Authorize]
 @inject PortfolioService PortfolioService
+@inject AuthenticationStateProvider AuthStateProvider
 @inject IDbContextFactory<StandoffPortfolioTracker.Infrastructure.AppDbContext> DbFactory
 @rendermode InteractiveServer
 
-<PageTitle>Dashboard | Standoff Tracker</PageTitle>
+<PageTitle>Дашборд | Standoff Tracker</PageTitle>
 
 <style>
-    .border-left-primary {
-        border-left: 4px solid #4e73df !important;
+    body {
+        background-color: #f8f9fc;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
-    .border-left-success {
-        border-left: 4px solid #1cc88a !important;
+    /* === Header Styles === */
+    .dashboard-header {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(0,0,0,0.04);
     }
 
-    .border-left-info {
-        border-left: 4px solid #36b9cc !important;
+    .date-badge {
+        background: rgba(78, 115, 223, 0.1);
+        color: #4e73df;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-bottom: 0.5rem;
     }
 
-    .border-left-warning {
-        border-left: 4px solid #f6c23e !important;
+    /* === Custom Dropdown === */
+    .custom-dropdown {
+        position: relative;
+        width: 240px;
+        z-index: 100;
     }
 
-    .border-left-danger {
-        border-left: 4px solid #e74a3b !important;
+    .dropdown-trigger {
+        background: white;
+        border: 1px solid #e3e6f0;
+        border-radius: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s;
+        font-weight: 600;
+        color: #2c3e50;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     }
 
-    .card-stat-title {
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        .dropdown-trigger:hover {
+            border-color: #4e73df;
+            box-shadow: 0 4px 10px rgba(78, 115, 223, 0.1);
+        }
+
+    .dropdown-menu-custom {
+        position: absolute;
+        top: 110%;
+        left: 0;
+        width: 100%;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border: 1px solid #f0f0f0;
+        overflow: hidden;
+        animation: slideDown 0.2s ease-out;
     }
 
-    .stat-icon {
-        font-size: 2rem;
-        opacity: 0.3;
+    .dropdown-item-custom {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background 0.1s;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .dropdown-item-custom:hover {
+            background: #f8f9fc;
+            color: #4e73df;
+        }
+
+        .dropdown-item-custom.active {
+            background: rgba(78, 115, 223, 0.05);
+            color: #4e73df;
+            font-weight: 700;
+        }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* === Stats Cards === */
+    .stat-card {
+        border: none;
+        border-radius: 16px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        background: white;
+        overflow: hidden;
+        position: relative;
+    }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: #ccc;
+        }
+
+        .stat-card.primary::before {
+            background: #4e73df;
+        }
+
+        .stat-card.success::before {
+            background: #1cc88a;
+        }
+
+        .stat-card.info::before {
+            background: #36b9cc;
+        }
+
+        .stat-card.warning::before {
+            background: #f6c23e;
+        }
+
+        .stat-card.danger::before {
+            background: #e74a3b;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    /* === Lists === */
+    .item-row {
+        transition: background 0.2s;
+        border-bottom: 1px solid #f8f9fc;
+    }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .item-row:hover {
+            background: #fdfdfe;
+        }
+
+    .img-box {
+        width: 48px;
+        height: 48px;
+        background: #fff;
+        border: 1px solid #edf0f2;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
     }
 </style>
 
 @if (isLoading)
 {
-    <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
-        <div class="spinner-border text-primary" role="status"></div>
+    <div class="d-flex flex-column justify-content-center align-items-center" style="height: 70vh;">
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <p class="text-muted fw-bold animate-pulse">Анализируем рынок...</p>
     </div>
 }
 else if (!hasPortfolios)
 {
-    <div class="text-center py-5 mt-5">
-        <div class="mb-3 display-1">📊</div>
-        <h2 class="text-gray-800">Empty Dashboard</h2>
-        <p class="text-muted">Create your first portfolio to start tracking.</p>
-        <a href="portfolio" class="btn btn-primary mt-3">🚀 Create Portfolio</a>
+    <div class="d-flex justify-content-center align-items-center" style="height: 70vh;">
+        <div class="text-center p-5 bg-white rounded-4 shadow-sm border">
+            <div class="mb-4 display-1 opacity-25">📂</div>
+            <h2 class="fw-bold text-dark">Начнем работу?</h2>
+            <p class="text-muted mb-4">У вас пока нет активных портфелей.</p>
+            <a href="portfolio" class="btn btn-primary btn-lg rounded-pill px-5 shadow fw-bold">
+                <i class="bi bi-plus-lg me-2"></i>Создать портфель
+            </a>
+        </div>
     </div>
 }
 else
 {
-    <div class="container-fluid p-0">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="container-fluid py-4" @onclick="CloseDropdown">
+
+        <div class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
             <div>
-                <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
-                <p class="text-muted small mb-0">Overview of your investments</p>
+                <span class="date-badge">
+                    <i class="bi bi-calendar3 me-2"></i>@DateTime.Now.ToString("dd MMMM yyyy")
+                </span>
+                <h1 class="h3 fw-bold text-dark mb-1">
+                    Привет, @userName! 👋
+                </h1>
+                <p class="text-muted small mb-0">Вот сводка по твоим инвестициям на сегодня.</p>
             </div>
 
-            <div class="d-flex align-items-center gap-2">
-                <select class="form-select form-select-sm fw-bold border-primary"
-                        style="width: 200px;"
-                        @bind="selectedPortfolioId"
-                        @bind:after="ReloadData">
-                    <option value="0">🌍 All Portfolios</option>
-                    @foreach (var p in availablePortfolios)
+            <div class="d-flex align-items-center gap-3">
+
+                <div class="custom-dropdown" @onclick:stopPropagation>
+                    <div class="dropdown-trigger" @onclick="ToggleDropdown">
+                        <span>
+                            @(selectedPortfolioId == 0 ? "🌍 Все портфели" : $"💼 {GetPortfolioName(selectedPortfolioId)}")
+                        </span>
+                        <i class="bi bi-chevron-down text-muted" style="font-size: 0.8rem; transform: @(isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)"); transition: 0.2s;"></i>
+                    </div>
+
+                    @if (isDropdownOpen)
                     {
-                        <option value="@p.Id">💼 @p.Name</option>
-                    }
-                </select>
-                <a href="portfolio" class="btn btn-sm btn-primary shadow-sm">Manage Items</a>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card border-left-primary shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="card-stat-title text-primary mb-1">Total Invested</div>
-                                <div class="h5 mb-0 font-weight-bold text-dark">@totalInvested.ToString("N0") G</div>
+                        <div class="dropdown-menu-custom">
+                            <div class="dropdown-item-custom @(selectedPortfolioId == 0 ? "active" : "")"
+                                 @onclick="() => SelectPortfolio(0)">
+                                <span class="fs-5">🌍</span> Все портфели
                             </div>
-                            <div class="col-auto"><span class="stat-icon">💰</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card border-left-info shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="card-stat-title text-info mb-1">Value (Net -20%)</div>
-                                <div class="h5 mb-0 font-weight-bold text-dark">@currentValue.ToString("N0") G</div>
-                            </div>
-                            <div class="col-auto"><span class="stat-icon">🏦</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card @(totalProfit >= 0 ? "border-left-success" : "border-left-danger") shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="card-stat-title @(totalProfit >= 0 ? "text-success" : "text-danger") mb-1">Net Profit</div>
-                                <div class="h5 mb-0 font-weight-bold text-dark">
-                                    @(totalProfit > 0 ? "+" : "")@totalProfit.ToString("N0") G
+                            <div class="dropdown-divider my-0"></div>
+                            @foreach (var p in availablePortfolios)
+                            {
+                                <div class="dropdown-item-custom @(selectedPortfolioId == p.Id ? "active" : "")"
+                                     @onclick="() => SelectPortfolio(p.Id)">
+                                    <span class="fs-5">💼</span> @p.Name
                                 </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <a href="portfolio" class="btn btn-outline-primary rounded-3 px-3 d-flex align-items-center justify-content-center"
+                   style="height: 44px; width: 44px;" title="Управление портфелями">
+                    <i class="bi bi-gear-fill"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card primary shadow-sm h-100 p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-uppercase text-muted small fw-bold mb-1">Вложено</div>
+                            <div class="h4 mb-0 fw-bold text-dark">@totalInvested.ToString("N0") G</div>
+                        </div>
+                        <div class="icon-box bg-light text-primary">💰</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card info shadow-sm h-100 p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-uppercase text-muted small fw-bold mb-1">
+                                Стоимость <i class="bi bi-info-circle ms-1" title="Чистыми (-20%)"></i>
                             </div>
-                            <div class="col-auto"><span class="stat-icon">📈</span></div>
+                            <div class="h4 mb-0 fw-bold text-dark">@currentValue.ToString("N0") G</div>
+                        </div>
+                        <div class="icon-box bg-light text-info">🏦</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card @(totalProfit >= 0 ? "success" : "danger") shadow-sm h-100 p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-uppercase text-muted small fw-bold mb-1">Прибыль</div>
+                            <div class="h4 mb-0 fw-bold @(totalProfit >= 0 ? "text-success" : "text-danger")">
+                                @(totalProfit > 0 ? "+" : "")@totalProfit.ToString("N0") G
+                            </div>
+                        </div>
+                        <div class="icon-box bg-light @(totalProfit >= 0 ? "text-success" : "text-danger")">
+                            📈
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-xl-3 col-md-6 mb-4">
-                <div class="card border-left-warning shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="card-stat-title text-warning mb-1">ROI</div>
-                                <div class="h5 mb-0 font-weight-bold text-dark">@roi.ToString("N1")%</div>
-                            </div>
-                            <div class="col-auto"><span class="stat-icon">🚀</span></div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card warning shadow-sm h-100 p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-uppercase text-muted small fw-bold mb-1">ROI</div>
+                            <div class="h4 mb-0 fw-bold text-dark">@roi.ToString("N1")%</div>
                         </div>
+                        <div class="icon-box bg-light text-warning">🚀</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="row mb-4">
+        <div class="row mb-5">
             <div class="col-12">
-                <div class="card shadow">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">📉 Portfolio Growth (30 Days)</h6>
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-graph-up text-primary me-2"></i>Динамика портфеля (30 дней)</h6>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body px-4 pb-4">
                         @if (chartData.Any())
                         {
-                            <ApexChart TItem="PortfolioHistoryPoint" Title="" Options="chartOptions" Height="300">
+                            <ApexChart TItem="PortfolioHistoryPoint" Title="" Options="chartOptions" Height="320">
                                 <ApexPointSeries TItem="PortfolioHistoryPoint"
                                                  Items="chartData"
-                                                 Name="Value"
+                                                 Name="Стоимость"
                                                  SeriesType="SeriesType.Area"
                                                  XValue="@(e => e.Date.ToString("dd.MM"))"
                                                  YValue="@(e => (decimal)e.Value)" />
@@ -164,8 +343,8 @@ else
                         }
                         else
                         {
-                            <div class="text-center py-5 text-muted">
-                                Not enough historical data. Check back tomorrow!
+                            <div class="text-center py-5">
+                                <p class="text-muted">История пока пуста. Загляните завтра!</p>
                             </div>
                         }
                     </div>
@@ -175,82 +354,91 @@ else
 
         <div class="row">
             <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-success">💎 Best Performing Assets</h6>
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-white border-bottom-0 pt-4 px-4">
+                        <h6 class="m-0 fw-bold text-success"><i class="bi bi-gem me-2"></i>Лидеры роста</h6>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body px-0 pt-2">
                         @if (topItems.Any())
                         {
                             @foreach (var item in topItems)
                             {
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="item-row px-4 py-3 d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center gap-3">
-                                        <div style="width: 45px; height: 45px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
+                                        <div class="img-box">
                                             @if (!string.IsNullOrEmpty(item.ImageUrl))
                                             {
-                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%;" referrerpolicy="no-referrer" />
+                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
                                             }
                                         </div>
                                         <div>
-                                            <div class="fw-bold text-dark">
+                                            <div class="fw-bold text-dark text-truncate" style="max-width: 140px;">
                                                 @item.Name
-                                                <span class="badge bg-secondary ms-1" style="font-size:0.65em">x@(item.Quantity)</span>
                                             </div>
-                                            <div class="text-muted small">@item.Skin</div>
-                                            <div class="small text-success fw-bold">Profit: +@item.TotalProfit.ToString("N0") G</div>
+                                            <div class="text-muted small d-flex align-items-center gap-2">
+                                                @item.Skin <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2">x@(item.Quantity)</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <span class="badge bg-success rounded-pill fs-6">+@item.Roi.ToString("N0")%</span>
+                                    <div class="text-end">
+                                        <div class="text-success fw-bold">+@item.TotalProfit.ToString("N0") G</div>
+                                        <span class="text-success small fw-bold bg-success bg-opacity-10 px-2 py-1 rounded">
+                                            +@item.Roi.ToString("N0")%
+                                        </span>
+                                    </div>
                                 </div>
-                                @if (item != topItems.Last())
-                                {
-                                    <hr class="my-2" />
-                                }
                             }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-4">Нет данных</p>
                         }
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-danger">🔻 Underperforming Assets</h6>
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-white border-bottom-0 pt-4 px-4">
+                        <h6 class="m-0 fw-bold text-danger"><i class="bi bi-arrow-down-right-circle me-2"></i>Аутсайдеры</h6>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body px-0 pt-2">
                         @if (worstItems.Any())
                         {
                             @foreach (var item in worstItems)
                             {
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="item-row px-4 py-3 d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center gap-3">
-                                        <div style="width: 45px; height: 45px; background: #f8f9fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
+                                        <div class="img-box">
                                             @if (!string.IsNullOrEmpty(item.ImageUrl))
                                             {
-                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%;" referrerpolicy="no-referrer" />
+                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
                                             }
                                         </div>
                                         <div>
-                                            <div class="fw-bold text-dark">
+                                            <div class="fw-bold text-dark text-truncate" style="max-width: 140px;">
                                                 @item.Name
-                                                <span class="badge bg-secondary ms-1" style="font-size:0.65em">x@(item.Quantity)</span>
                                             </div>
-                                            <div class="text-muted small">@item.Skin</div>
-                                            <div class="small text-danger fw-bold">Loss: @item.TotalProfit.ToString("N0") G</div>
+                                            <div class="text-muted small d-flex align-items-center gap-2">
+                                                @item.Skin <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2">x@(item.Quantity)</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <span class="badge bg-danger rounded-pill fs-6">@item.Roi.ToString("N0")%</span>
+                                    <div class="text-end">
+                                        <div class="text-danger fw-bold">@item.TotalProfit.ToString("N0") G</div>
+                                        <span class="text-danger small fw-bold bg-danger bg-opacity-10 px-2 py-1 rounded">
+                                            @item.Roi.ToString("N0")%
+                                        </span>
+                                    </div>
                                 </div>
-                                @if (item != worstItems.Last())
-                                {
-                                    <hr class="my-2" />
-                                }
                             }
                         }
                         else
                         {
-                            <p class="text-muted text-center py-3">All your items are profitable! 🎉</p>
+                            <div class="text-center py-5">
+                                <span class="fs-1">🎉</span>
+                                <p class="text-muted mt-2">Убыточных позиций нет!</p>
+                            </div>
                         }
                     </div>
                 </div>
@@ -260,10 +448,13 @@ else
 }
 
 @code {
-    // === Variables ===
     private bool isLoading = true;
     private bool hasPortfolios = false;
-    private int selectedPortfolioId = 0; // 0 = All
+    private int selectedPortfolioId = 0;
+    private string userName = "Трейдер";
+
+    // Dropdown state
+    private bool isDropdownOpen = false;
 
     private List<PortfolioAccount> availablePortfolios = new();
     private List<InventoryItem> allInventory = new();
@@ -295,6 +486,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         SetupChart();
+        await LoadUserName();
         availablePortfolios = await PortfolioService.GetMyAccountsAsync();
 
         if (availablePortfolios.Any())
@@ -308,15 +500,51 @@ else
         }
     }
 
+    private async Task LoadUserName()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            // Берем имя из клеймов (или "Трейдер", если нет имени)
+            userName = user.Identity.Name ?? "Трейдер";
+
+            // Если у вас в Identity есть DisplayName, лучше использовать его,
+            // но для простоты берем стандартное имя.
+        }
+    }
+
+    // === Логика кастомного Dropdown ===
+    private void ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+    }
+
+    private void CloseDropdown()
+    {
+        if (isDropdownOpen) isDropdownOpen = false;
+    }
+
+    private async Task SelectPortfolio(int id)
+    {
+        selectedPortfolioId = id;
+        isDropdownOpen = false;
+        await ReloadData();
+    }
+
+    private string GetPortfolioName(int id)
+    {
+        return availablePortfolios.FirstOrDefault(p => p.Id == id)?.Name ?? "Неизвестно";
+    }
+    // ==================================
+
     private async Task ReloadData()
     {
         isLoading = true;
         allInventory.Clear();
 
-        // 1. Load Inventory based on selection
         if (selectedPortfolioId == 0)
         {
-            // Load ALL portfolios
             foreach (var p in availablePortfolios)
             {
                 var pItems = await PortfolioService.GetInventoryAsync(p.Id);
@@ -325,7 +553,6 @@ else
         }
         else
         {
-            // Load specific
             allInventory = await PortfolioService.GetInventoryAsync(selectedPortfolioId);
         }
 
@@ -344,40 +571,30 @@ else
 
     private void CalculateStats()
     {
-        // 1. Global Totals
         totalInvested = allInventory.Sum(i => i.PurchasePrice * i.Quantity);
-
-        // Base value + Attachments (if your item model has them loaded, assuming yes from previous steps)
-        // Here assuming ItemBase.CurrentMarketPrice is updated
         currentValue = allInventory.Sum(i => CalculateItemNetValue(i) * i.Quantity);
-
         totalProfit = currentValue - totalInvested;
 
-        // ROI Fix: If invested is 0 but profit > 0 (free item), count as 100% gain effectively
         if (totalInvested > 0)
             roi = (totalProfit / totalInvested) * 100;
         else if (totalProfit > 0)
-            roi = 100; // or technically infinity
+            roi = 100;
         else
             roi = 0;
 
-        // 2. Grouping/Stacking Logic for Lists
         var groupedStats = allInventory
             .Where(i => i.ItemBase != null)
-            .GroupBy(i => i.ItemBaseId) // Group by Item Type
+            .GroupBy(i => i.ItemBaseId)
             .Select(g =>
             {
                 var first = g.First();
                 var qty = g.Sum(x => x.Quantity);
                 var invested = g.Sum(x => x.PurchasePrice * x.Quantity);
-
-                // Calculate current net value for the whole stack
                 var currentNet = g.Sum(x => CalculateItemNetValue(x) * x.Quantity);
                 var profit = currentNet - invested;
-
                 decimal itemRoi = 0;
                 if (invested > 0) itemRoi = (profit / invested) * 100;
-                else if (profit > 0) itemRoi = 100; // Free item profit
+                else if (profit > 0) itemRoi = 100;
 
                 return new StackedAssetStat
                     {
@@ -395,12 +612,9 @@ else
         worstItems = groupedStats.Where(s => s.TotalProfit < 0).OrderBy(s => s.TotalProfit).Take(3).ToList();
     }
 
-    // Helper to calculate NET value (Market - 20%)
     private decimal CalculateItemNetValue(InventoryItem item)
     {
         var price = item.ItemBase?.CurrentMarketPrice ?? 0;
-        // If you have attachments logic, add it here too. For dashboard speed, usually base price is enough,
-        // but let's stick to 20% commission rule.
         return price * 0.8m;
     }
 
@@ -414,75 +628,57 @@ else
     {
         chartOptions = new ApexChartOptions<PortfolioHistoryPoint>
             {
-                Chart = new Chart { Toolbar = new Toolbar { Show = false }, Zoom = new Zoom { Enabled = false } },
-                Colors = new List<string> { "#4e73df" },
-                Stroke = new Stroke
+                Chart = new Chart
                 {
-                    Curve = Curve.Straight, // 👈 Sharp lines request
-                    Width = 2
+                    Toolbar = new Toolbar { Show = false },
+                    Zoom = new Zoom { Enabled = false },
+                    Background = "transparent",
+                    FontFamily = "Inter, sans-serif"
                 },
+                Colors = new List<string> { "#4e73df" },
+                Stroke = new Stroke { Curve = Curve.Smooth, Width = 3 },
                 DataLabels = new DataLabels { Enabled = false },
-                Yaxis = new List<YAxis> { new YAxis { Labels = new YAxisLabels { Formatter = @"function (value) { return value.toFixed(0); }" } } },
-                Tooltip = new Tooltip { X = new TooltipX { Format = "dd MMM" } }
+                Yaxis = new List<YAxis> { new YAxis { Labels = new YAxisLabels { Formatter = @"function (value) { return value.toFixed(0) + ' G'; }" } } },
+                Xaxis = new XAxis { Labels = new XAxisLabels { Format = "dd MMM" }, Tooltip = new XAxisTooltip { Enabled = false } },
+                Tooltip = new Tooltip { X = new TooltipX { Format = "dd MMM" }, Theme = Mode.Light },
+                Grid = new Grid { BorderColor = "#f1f1f1" }
             };
     }
 
     private async Task LoadChartData()
     {
         using var context = await DbFactory.CreateDbContextAsync();
-
-        // Get History for involved items
         var itemIds = allInventory.Select(i => i.ItemBaseId).Distinct().ToList();
         var endDate = DateTime.UtcNow.Date;
         var startDate = endDate.AddDays(-30);
 
         var history = await context.MarketHistory
             .Where(h => itemIds.Contains(h.ItemBaseId) && h.RecordedAt >= startDate)
-            .Select(h => new { h.ItemBaseId, h.Price, h.RecordedAt }) // Projection for speed
+            .Select(h => new { h.ItemBaseId, h.Price, h.RecordedAt })
             .ToListAsync();
 
         if (!history.Any()) return;
 
         chartData = new List<PortfolioHistoryPoint>();
 
-        // Generate data for each day
         for (var day = startDate; day <= endDate; day = day.AddDays(1))
         {
             decimal dailyTotal = 0;
-
             foreach (var invItem in allInventory)
             {
-                // 🔥 CRITICAL FIX: Only count item if we owned it on that date
                 if (invItem.PurchaseDate.Date <= day)
                 {
-                    // Find price history for this specific day
-                    // Logic: Get the last recorded price BEFORE or ON 'day'
                     var priceRecord = history
                         .Where(h => h.ItemBaseId == invItem.ItemBaseId && h.RecordedAt.Date <= day)
                         .OrderByDescending(h => h.RecordedAt)
                         .FirstOrDefault();
 
-                    // If we found history, use it. If not (item existed but no parse data), fallback to purchase price or 0?
-                    // Let's use latest known if available.
-                    if (priceRecord != null)
-                    {
-                        dailyTotal += (priceRecord.Price * 0.8m * invItem.Quantity);
-                    }
-                    else
-                    {
-                        // Fallback: If no history exists for that old date, maybe use PurchasePrice as baseline?
-                        // Or skip. Skipping prevents weird spikes from 0.
-                        // Better: Use PurchasePrice * 0.8 as a "safe" val if chart history is missing.
-                        dailyTotal += (invItem.PurchasePrice * 0.8m * invItem.Quantity);
-                    }
+                    if (priceRecord != null) dailyTotal += (priceRecord.Price * 0.8m * invItem.Quantity);
+                    else dailyTotal += (invItem.PurchasePrice * 0.8m * invItem.Quantity);
                 }
             }
-
-            // Only add point if value > 0 (prevents long flat zero lines at start if portfolio is new)
             if (dailyTotal > 0 || chartData.Any())
-            {
                 chartData.Add(new PortfolioHistoryPoint { Date = day, Value = dailyTotal });
-            }
         }
     }
 }

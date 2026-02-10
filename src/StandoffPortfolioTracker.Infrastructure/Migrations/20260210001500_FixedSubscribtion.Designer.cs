@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StandoffPortfolioTracker.Infrastructure;
 
@@ -11,9 +12,11 @@ using StandoffPortfolioTracker.Infrastructure;
 namespace StandoffPortfolioTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260210001500_FixedSubscribtion")]
+    partial class FixedSubscribtion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -186,16 +189,7 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("FavoriteSkinsJson")
-                        .HasColumnType("longtext");
-
                     b.Property<bool>("IsAutoRenew")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsBlogEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsGameIdPublic")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsProfilePublic")
@@ -233,9 +227,6 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.Property<DateTime?>("ProExpirationDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("ProfileFrame")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("longtext");
 
@@ -247,10 +238,6 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
 
                     b.Property<bool>("ShowTopItems")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("StandoffGameId")
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("SubType")
                         .HasColumnType("int");

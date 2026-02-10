@@ -55,6 +55,7 @@ builder.Services.AddScoped<WikiParserService>();
 builder.Services.AddScoped<BillingService>();
 builder.Services.AddApexCharts();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddHostedService<SubscriptionWorker>();
 builder.Services.AddScoped<AdminUserService>();
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<ApplicationUser>>();
 builder.Services.AddSingleton<GlobalNotificationService>();
