@@ -18,8 +18,8 @@
 <style>
     /* === Global === */
     body {
-        background-color: #f8f9fa;
-        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #f8f9fa 0%, #f0f4f8 100%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         color: #344767;
     }
 
@@ -33,41 +33,64 @@
     /* === Profile Header === */
     .profile-header-card {
         background: white;
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.06);
-        margin-bottom: 2rem;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+        margin-bottom: 3rem;
         position: relative;
-        overflow: visible; /* Важно: разрешаем элементам выходить за границы */
+        overflow: visible;
+        border: 1px solid rgba(255,255,255,0.8);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .profile-header-card:hover {
+        box-shadow: 0 30px 80px rgba(0,0,0,0.12);
     }
 
     .profile-cover {
-        height: 160px;
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        border-radius: 16px 16px 0 0;
+        height: 180px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        border-radius: 24px 24px 0 0;
         position: relative;
-        overflow: hidden; /* Скрываем всё, что внутри обложки */
+        overflow: hidden;
     }
 
-        .profile-cover::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 10% 20%, rgba(255,255,255,0.05) 0%, transparent 20%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.05) 0%, transparent 20%);
-        }
+    .profile-cover::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%),
+            radial-gradient(circle at 40% 0%, rgba(255,255,255,0.08) 0%, transparent 60%);
+    }
+
+    .profile-cover::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="30" r="1.5" fill="rgba(255,255,255,0.08)"/><circle cx="90" cy="70" r="2.5" fill="rgba(255,255,255,0.05)"/></svg>');
+        opacity: 0.4;
+    }
 
     /* === AVATAR POSITIONING === */
-    /* Вынесен из profile-cover, чтобы не обрезался */
     .avatar-container-absolute {
         position: absolute;
-        /* 160px (высота обложки) - 65px (половина высоты аватара) = 95px */
-        top: 95px;
+        top: 105px;
         left: 40px;
-        width: 130px;
-        height: 130px;
-        z-index: 20; /* Поверх всего */
+        width: 140px;
+        height: 140px;
+        z-index: 20;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .profile-header-card:hover .avatar-container-absolute {
+        transform: translateY(-8px);
     }
 
     .avatar-frame {
@@ -79,7 +102,28 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        position: relative;
+    }
+
+    .avatar-frame::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        padding: 4px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .avatar-frame.gold::before,
+    .avatar-frame.neon::before,
+    .avatar-frame.fire::before {
+        opacity: 1;
     }
 
     .avatar-img {
@@ -87,161 +131,202 @@
         height: 100%;
         object-fit: cover;
         border-radius: 50%;
-        background-color: #f1f5f9;
-        border: 2px solid #fff;
+        background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+        border: 3px solid #fff;
+        transition: transform 0.3s;
     }
 
-    /* Рамки аватара */
     .avatar-frame.default {
         border: none;
     }
 
     .avatar-frame.gold {
         background: linear-gradient(135deg, #FFD700, #FDB931);
-        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+        box-shadow: 0 0 40px rgba(255, 215, 0, 0.5), 0 10px 40px rgba(255, 215, 0, 0.3);
         padding: 5px;
+    }
+
+    .avatar-frame.gold:hover .avatar-img {
+        transform: scale(1.02);
     }
 
     .avatar-frame.neon {
         background: linear-gradient(135deg, #00f3ff, #0078ff);
-        box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+        box-shadow: 0 0 40px rgba(0, 243, 255, 0.5), 0 10px 40px rgba(0, 120, 255, 0.3);
         padding: 5px;
+    }
+
+    .avatar-frame.neon:hover .avatar-img {
+        transform: scale(1.02);
     }
 
     .avatar-frame.fire {
         background: linear-gradient(135deg, #ff4500, #ff8c00);
-        box-shadow: 0 0 30px rgba(255, 69, 0, 0.4);
+        box-shadow: 0 0 40px rgba(255, 69, 0, 0.5), 0 10px 40px rgba(255, 140, 0, 0.3);
         padding: 5px;
+    }
+
+    .avatar-frame.fire:hover .avatar-img {
+        transform: scale(1.02);
     }
 
     /* === INFO BAR === */
     .profile-info-body {
-        padding-top: 15px;
-        padding-bottom: 25px;
+        padding-top: 20px;
+        padding-bottom: 30px;
         padding-right: 30px;
-        /* Отступ слева = ширина аватара (130) + позиция (40) + отступ (20) */
-        padding-left: 190px;
-        min-height: 80px;
+        padding-left: 210px;
+        min-height: 100px;
     }
 
     /* === MOBILE ADAPTIVE === */
     @@media (max-width: 991px) {
-        .profile-cover
+        .profile-cover {
+            height: 150px;
+        }
 
-    {
-        height: 140px;
-    }
+        .avatar-container-absolute {
+            width: 120px;
+            height: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 80px;
+        }
 
-    .avatar-container-absolute {
-        width: 110px;
-        height: 110px;
-        left: 50%;
-        transform: translateX(-50%);
-        /* 140px - 55px = 85px */
-        top: 85px;
-    }
+        .profile-info-body {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 70px;
+            text-align: center;
+        }
 
-    .profile-info-body {
-        padding-left: 20px;
-        padding-right: 20px;
-        padding-top: 65px; /* Место под аватарку */
-        text-align: center;
-    }
+        .info-badges {
+            justify-content: center;
+        }
 
-    .info-badges {
-        justify-content: center;
-    }
-
-    /* Принудительно центрируем заголовок на мобильных */
-    h1.d-flex {
-        justify-content: center !important;
-    }
-
+        h1.d-flex {
+            justify-content: center !important;
+        }
     }
 
     /* === UI Elements === */
     .badge-role {
         font-size: 0.65rem;
         font-weight: 800;
-        letter-spacing: 0.5px;
-        padding: 5px 10px;
-        border-radius: 6px;
+        letter-spacing: 1px;
+        padding: 6px 12px;
+        border-radius: 8px;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        gap: 5px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         vertical-align: middle;
         text-transform: uppercase;
         line-height: 1;
         height: fit-content;
+        transition: all 0.3s;
+    }
+
+    .badge-role:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
     }
 
     .badge-premium {
         background: linear-gradient(135deg, #FFD700, #FDB931);
         color: #342a00;
-        border: 1px solid rgba(255,215,0,0.3);
+        border: 1px solid rgba(255,215,0,0.4);
     }
 
     .badge-lite {
         background: linear-gradient(135deg, #0dcaf0, #0d6efd);
         color: white;
-        border: 1px solid rgba(13,202,240,0.3);
+        border: 1px solid rgba(13,202,240,0.4);
     }
 
     .game-id-pill {
-        background: #f1f5f9;
-        border: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #f1f5f9, #e8f0f8);
+        border: 2px solid #e2e8f0;
         color: #475569;
-        font-family: monospace;
+        font-family: 'Monaco', 'Menlo', monospace;
         font-size: 0.85rem;
         font-weight: 700;
-        padding: 5px 12px;
-        border-radius: 30px;
+        padding: 7px 14px;
+        border-radius: 20px;
         display: inline-flex;
         align-items: center;
         gap: 6px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
     }
 
-        .game-id-pill:hover {
-            background: #e2e8f0;
-            transform: translateY(-1px);
-        }
+    .game-id-pill:hover {
+        background: linear-gradient(135deg, #e2e8f0, #d8e3f0);
+        border-color: #cbd5e0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .game-id-pill:active {
+        transform: translateY(0);
+    }
 
     /* Stats Cards */
     .stat-card-modern {
         background: white;
         border-radius: 20px;
-        padding: 25px;
+        padding: 30px;
         height: 100%;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        border: 1px solid rgba(0,0,0,0.02);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.03);
         position: relative;
         overflow: hidden;
-        transition: transform 0.2s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-        .stat-card-modern:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-        }
+    .stat-card-modern::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .stat-card-modern:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+    }
+
+    .stat-card-modern:hover::before {
+        opacity: 1;
+    }
 
     .stat-bg-icon {
         position: absolute;
-        right: -15px;
-        bottom: -15px;
-        font-size: 6rem;
-        opacity: 0.05;
-        transform: rotate(-10deg);
+        right: -20px;
+        bottom: -20px;
+        font-size: 7rem;
+        opacity: 0.08;
+        transform: rotate(-15deg);
         pointer-events: none;
+        transition: transform 0.3s;
+    }
+
+    .stat-card-modern:hover .stat-bg-icon {
+        transform: rotate(-15deg) scale(1.1);
     }
 
     .stat-value-huge {
-        font-size: 2rem;
+        font-size: 2.5rem;
         font-weight: 800;
-        color: #344767;
-        line-height: 1;
+        color: #1a202c;
+        line-height: 1.2;
+        letter-spacing: -1px;
     }
 
     .stat-label-modern {
@@ -249,30 +334,60 @@
         font-size: 0.75rem;
         font-weight: 700;
         color: #8392ab;
-        letter-spacing: 1px;
-        margin-bottom: 10px;
+        letter-spacing: 1.5px;
+        margin-bottom: 12px;
+    }
+
+    .progress {
+        background: #edf2f7 !important;
+        border-radius: 10px;
+        height: 8px !important;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        background: linear-gradient(90deg, #FFD700, #FDB931) !important;
+        border-radius: 10px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* Skin Display Cards */
     .skin-display-card {
         background: white;
-        border-radius: 14px;
+        border-radius: 16px;
         border: 1px solid #f0f2f5;
-        padding: 10px;
+        padding: 12px;
         position: relative;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         overflow: hidden;
         height: 100%;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     }
 
-        .skin-display-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.06);
-            border-color: #e3e6f0;
-        }
+    .skin-display-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .skin-display-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .skin-display-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 40px rgba(0,0,0,0.1);
+        border-color: #e3e6f0;
+    }
 
     .skin-img-wrapper {
         flex-grow: 1;
@@ -280,49 +395,73 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle, #f8fafc 0%, #fff 70%);
+        background: radial-gradient(circle at 30% 30%, #f8fafc 0%, #fff 70%);
         border-radius: 12px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        position: relative;
+        overflow: hidden;
     }
 
-        .skin-img-wrapper img {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.15));
-            transition: transform 0.3s;
-        }
+    .skin-img-wrapper::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(240, 147, 251, 0.05));
+        pointer-events: none;
+    }
+
+    .skin-img-wrapper img {
+        max-width: 85%;
+        max-height: 85%;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.12));
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 1;
+    }
 
     .skin-display-card:hover img {
-        transform: scale(1.1) rotate(2deg);
+        transform: scale(1.12) rotate(3deg);
     }
 
     .rarity-line {
         height: 3px;
-        width: 30px;
-        margin: 0 auto 6px auto;
+        width: 35px;
+        margin: 0 auto 8px auto;
         border-radius: 2px;
+        transition: all 0.3s;
+    }
+
+    .skin-display-card:hover .rarity-line {
+        width: 50px;
     }
 
     /* ROI Badges */
     .item-roi {
         font-size: 0.7rem;
         font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
         display: inline-flex;
         align-items: center;
-        margin-top: 4px;
+        margin-top: 6px;
+        transition: all 0.2s;
+    }
+
+    .item-roi:hover {
+        transform: scale(1.05);
     }
 
     .roi-plus {
-        background: rgba(16, 185, 129, 0.1);
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
         color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
     }
 
     .roi-minus {
-        background: rgba(239, 68, 68, 0.1);
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
         color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 
     /* Rarity Colors */
@@ -353,28 +492,135 @@
     .r-nameless {
         background: linear-gradient(to right, #FFD700, #FDB931);
     }
+
+    /* Rarity Text Colors */
+    .rarity-text-common {
+        color: #b0c3d9;
+        font-weight: 700;
+    }
+
+    .rarity-text-uncommon {
+        color: #5e98d9;
+        font-weight: 700;
+    }
+
+    .rarity-text-rare {
+        color: #4b69ff;
+        font-weight: 700;
+    }
+
+    .rarity-text-epic {
+        color: #8847ff;
+        font-weight: 700;
+    }
+
+    .rarity-text-legendary {
+        color: #d32ce6;
+        font-weight: 700;
+    }
+
+    .rarity-text-arcane {
+        color: #eb4b4b;
+        font-weight: 700;
+    }
+
+    .rarity-text-nameless {
+        background: linear-gradient(to right, #FFD700, #FDB931);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+    }
+
+    /* Section Titles */
+    h5.section-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #1a202c;
+        position: relative;
+        padding-left: 30px;
+    }
+
+    h5.section-title::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 20px;
+        background: linear-gradient(180deg, #667eea, #764ba2);
+        border-radius: 2px;
+    }
+
+    /* Buttons */
+    .btn-light {
+        background: white !important;
+        color: #344767 !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px;
+        border: 2px solid #e2e8f0 !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+
+    .btn-light:hover {
+        transform: translateY(-3px);
+        border-color: #cbd5e0 !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        background: linear-gradient(135deg, #fff, #f8f9fa) !important;
+    }
+
+    /* Loading spinner */
+    .spinner-border {
+        border-color: rgba(102, 126, 234, 0.2) !important;
+        border-right-color: #667eea !important;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Empty state */
+    .empty-state {
+        background: linear-gradient(135deg, #f8f9fa 0%, #f0f4f8 100%);
+        border: 2px dashed #cbd5e0;
+        border-radius: 20px;
+        padding: 60px 20px;
+        text-align: center;
+        transition: all 0.3s;
+    }
+
+    .empty-state:hover {
+        border-color: #a0aec0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
 </style>
 
-<div class="container-fluid py-4" style="max-width: 1200px;">
+<div class="container-fluid py-5" style="max-width: 1200px;">
     @if (isLoading)
     {
         <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+            <div class="spinner-border text-primary" style="width: 3.5rem; height: 3.5rem;"></div>
         </div>
     }
     else if (targetUser == null)
     {
         <div class="text-center py-5">
-            <h3>Пользователь не найден 🤷‍♂️</h3>
-            <a href="/" class="btn btn-primary rounded-pill mt-3">На главную</a>
+            <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.3;">🤷‍♂️</div>
+            <h3 class="fw-bold text-dark mb-3">Пользователь не найден</h3>
+            <p class="text-muted mb-4">Данного пользователя не существует в системе</p>
+            <a href="/" class="btn btn-primary rounded-pill px-5 py-2 fw-bold">На главную</a>
         </div>
     }
     else if (!targetUser.IsProfilePublic && !IsOwner)
     {
         <div class="profile-header-card text-center py-5">
-            <div class="display-1 text-secondary opacity-25 mb-3"><i class="bi bi-lock-fill"></i></div>
-            <h3 class="fw-bold text-dark">Профиль скрыт</h3>
-            <p class="text-muted">Пользователь ограничил доступ к своему профилю.</p>
+            <div style="font-size: 5rem; opacity: 0.15; margin-bottom: 1.5rem;"><i class="bi bi-lock-fill"></i></div>
+            <h3 class="fw-bold text-dark mb-2">Профиль скрыт</h3>
+            <p class="text-muted mb-4">Пользователь ограничил доступ к своему профилю</p>
         </div>
     }
     else
@@ -389,15 +635,15 @@
             </div>
 
             <div class="profile-info-body">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center align-items-md-start gap-2">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center align-items-md-start gap-3">
 
                     <div class="text-center text-md-start w-100">
-                        <h1 class="fw-bold text-dark mb-1 d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-2" style="font-size: 1.8rem;">
+                        <h1 class="fw-bold text-dark mb-2 d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-2" style="font-size: 2rem; letter-spacing: -0.5px;">
                             <span>@(string.IsNullOrEmpty(targetUser.DisplayName) ? targetUser.UserName : targetUser.DisplayName)</span>
                             <div class="d-inline-flex align-items-center gap-2">
                                 @if (userRoles.Contains("Admin"))
                                 {
-                                    <i class="bi bi-patch-check-fill text-primary" style="font-size: 1.2rem;" title="Администратор"></i>
+                                    <i class="bi bi-patch-check-fill text-primary" style="font-size: 1.3rem;" title="Администратор"></i>
                                 }
 
                                 @if (targetUser.SubType == SubscriptionType.Premium)
@@ -407,34 +653,33 @@
                                 else if (targetUser.SubType == SubscriptionType.Lite)
                                 {
                                     <span class="badge-role badge-lite"><i class="bi bi-lightning-fill"></i> LITE</span>
-
                                 }
                             </div>
                         </h1>
 
-                        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-3 info-badges mb-2">
-                            <span class="text-muted fw-bold small">@targetUser.Email</span>
+                        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-3 info-badges mb-3">
+                            <span class="text-muted fw-bold small"><i class="bi bi-envelope me-2" style="opacity: 0.7;"></i>@targetUser.Email</span>
 
                             @if ((targetUser.IsGameIdPublic || IsOwner) && !string.IsNullOrEmpty(targetUser.StandoffGameId))
                             {
                                 <div class="game-id-pill" @onclick="CopyGameId" title="Скопировать ID">
-                                    <i class="bi bi-controller text-muted"></i> @targetUser.StandoffGameId
+                                    <i class="bi bi-controller"></i> @targetUser.StandoffGameId
                                 </div>
                             }
                             else if (IsOwner && string.IsNullOrEmpty(targetUser.StandoffGameId))
                             {
-                                <a href="settings" class="game-id-pill text-decoration-none border-dashed text-primary bg-white">
+                                <a href="settings" class="game-id-pill text-decoration-none border-0 text-primary" style="background: rgba(102, 126, 234, 0.1);">
                                     <i class="bi bi-plus-circle"></i> Указать ID
                                 </a>
                             }
 
-                            <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i> @targetUser.JoinDate.ToString("MMMM yyyy")</span>
+                            <span class="text-muted small"><i class="bi bi-calendar3 me-2" style="opacity: 0.7;"></i>Присоединился: @targetUser.JoinDate.ToString("MMMM yyyy")</span>
                         </div>
                     </div>
 
                     @if (IsOwner)
                     {
-                        <a href="settings" class="btn btn-light border fw-bold rounded-pill px-4 shadow-sm text-nowrap mt-3 mt-md-0 btn-sm">
+                        <a href="settings" class="btn btn-light rounded-pill px-5 shadow-sm text-nowrap mt-3 mt-md-0">
                             <i class="bi bi-gear-fill me-2"></i> Настройки
                         </a>
                     }
@@ -450,18 +695,18 @@
                         <div class="stat-bg-icon text-warning"><i class="bi bi-wallet2"></i></div>
                         <div class="stat-label-modern">Стоимость портфеля</div>
                         <div class="stat-value-huge">
-                            @portfolioValue.ToString("N0") <span class="text-gradient-gold" style="font-size: 0.6em;">G</span>
+                            @portfolioValue.ToString("N0") <span class="text-gradient-gold" style="font-size: 0.5em; margin-left: 4px;">G</span>
                         </div>
 
                         @if (targetUser.PortfolioGoal > 0)
                         {
-                            <div class="mt-4">
-                                <div class="d-flex justify-content-between text-muted small fw-bold mb-1">
+                            <div class="mt-5">
+                                <div class="d-flex justify-content-between text-muted small fw-bold mb-2">
                                     <span>Цель: @targetUser.PortfolioGoal.ToString("N0")</span>
-                                    <span>@((portfolioValue / targetUser.PortfolioGoal * 100).ToString("N0"))%</span>
+                                    <span style="color: #667eea; font-weight: 800;">@((portfolioValue / targetUser.PortfolioGoal * 100).ToString("N0"))%</span>
                                 </div>
-                                <div class="progress" style="height: 6px; border-radius: 10px; background: #edf2f7;">
-                                    <div class="progress-bar bg-warning" role="progressbar"
+                                <div class="progress" style="height: 8px; border-radius: 10px;">
+                                    <div class="progress-bar" role="progressbar"
                                          style="width: @(Math.Min(100, (portfolioValue/targetUser.PortfolioGoal)*100))%; border-radius: 10px;">
                                     </div>
                                 </div>
@@ -480,20 +725,20 @@
                         @if (topItems.Any())
                         {
                             var best = topItems.First();
-                            <div class="d-flex align-items-center gap-3 mt-2">
-                                <div style="width: 60px; height: 60px; background: #f8fafc; border-radius: 12px; padding: 5px; border: 1px solid #edf2f7;">
-                                    <img src="@best.ImageUrl" style="width: 100%; height: 100%; object-fit: contain;" />
+                            <div class="d-flex align-items-center gap-3 mt-3">
+                                <div style="width: 70px; height: 70px; background: radial-gradient(circle, #f8fafc 0%, #fff 70%); border-radius: 12px; padding: 8px; border: 1px solid #edf2f7; display: flex; align-items: center; justify-content: center;">
+                                    <img src="@best.ImageUrl" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));" />
                                 </div>
                                 <div>
-                                    <div class="fw-bold text-dark fs-5 text-truncate" style="max-width: 250px;">@best.Name</div>
-                                    <div class="text-muted small mb-1">@best.SkinName</div>
-                                    <div class="fw-bold text-success">@best.CurrentValue.ToString("N0") G</div>
+                                    <div class="fw-bold text-dark fs-5 text-truncate" style="max-width: 250px; letter-spacing: -0.5px;">@best.Name</div>
+                                    <div class="@GetRarityTextColor(best.Rarity) text-truncate" style="font-size: 0.9rem;">@best.SkinName</div>
+                                    <div class="fw-bold" style="color: #10b981; font-size: 1.1rem;">@best.CurrentValue.ToString("N0") <span style="color: #FFD700;">G</span></div>
                                 </div>
                             </div>
                         }
                         else
                         {
-                            <div class="text-muted fs-5 fw-bold mt-3 opacity-50">Нет данных</div>
+                            <div class="text-muted fs-5 fw-bold mt-4 opacity-50">Нет данных</div>
                         }
                     </div>
                 </div>
@@ -503,7 +748,7 @@
         @if (showcaseItems.Any())
         {
             <div class="mb-5">
-                <h5 class="fw-bold mb-3 ps-1 text-dark d-flex align-items-center gap-2">
+                <h5 class="fw-bold mb-4 ps-1 text-dark d-flex align-items-center gap-2 section-title">
                     <i class="bi bi-star-fill text-warning"></i> Витрина
                 </h5>
                 <div class="row g-3">
@@ -518,8 +763,8 @@
                                 </div>
 
                                 <div class="text-center mt-auto">
-                                    <div class="text-uppercase small text-muted fw-bold" style="font-size: 0.65rem;">@item.ItemBase?.Name</div>
-                                    <div class="fw-bold text-dark text-truncate">@item.ItemBase?.SkinName</div>
+                                    <div class="text-uppercase small text-muted fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">@item.ItemBase?.Name</div>
+                                    <div class="fw-bold text-truncate @GetRarityTextColor(item.ItemBase?.Rarity)" style="font-size: 0.95rem;">@item.ItemBase?.SkinName</div>
                                 </div>
                             </div>
                         </div>
@@ -531,7 +776,7 @@
         @if ((targetUser.ShowTopItems || IsOwner) && topItems.Any())
         {
             <div class="mb-5">
-                <h5 class="fw-bold mb-3 ps-1 text-dark d-flex align-items-center gap-2">
+                <h5 class="fw-bold mb-4 ps-1 text-dark d-flex align-items-center gap-2 section-title">
                     <i class="bi bi-graph-up-arrow text-primary"></i> Топ активы
                 </h5>
                 <div class="row g-3">
@@ -542,7 +787,7 @@
                                 <div class="rarity-line @GetRarityCss(item.Rarity)"></div>
                                 @if (item.IsStatTrack)
                                 {
-                                    <span class="position-absolute top-0 end-0 m-2 badge bg-warning text-dark" style="font-size: 0.6em;">ST</span>
+                                    <span class="position-absolute top-0 end-0 m-2 badge" style="background: linear-gradient(135deg, #FFD700, #FDB931); color: #342a00; font-size: 0.6em; font-weight: 800;">ST</span>
                                 }
 
                                 <div class="skin-img-wrapper">
@@ -550,8 +795,8 @@
                                 </div>
 
                                 <div class="text-center mt-auto">
-                                    <div class="text-uppercase small text-muted fw-bold" style="font-size: 0.65rem;">@item.Name</div>
-                                    <div class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.85rem;">@item.SkinName</div>
+                                    <div class="text-uppercase small text-muted fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">@item.Name</div>
+                                    <div class="fw-bold text-truncate mb-2 @GetRarityTextColor(item.Rarity)" style="font-size: 0.85rem;">@item.SkinName</div>
 
                                     <div class="mb-2">
                                         @if (item.RoiPercent >= 0)
@@ -568,20 +813,20 @@
                                         }
                                     </div>
 
-                                    <div class="bg-light rounded-pill py-1 px-2 fw-bold text-dark small">
-                                        @item.CurrentValue.ToString("N0") <span class="text-warning">G</span>
+                                    <div class="bg-light rounded-pill py-2 px-2 fw-bold text-dark small" style="background: linear-gradient(135deg, #f8f9fa, #f0f4f8) !important;">
+                                        @item.CurrentValue.ToString("N0") <span class="text-warning" style="font-weight: 900;">G</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     }
-                </div>
+                </div>          
             </div>
         }
         else if (targetUser.ShowTopItems || IsOwner)
         {
-            <div class="text-center py-5 bg-white rounded-4 shadow-sm border-dashed">
-                <p class="text-muted fw-bold m-0 opacity-50">Инвентарь пуст</p>
+            <div class="empty-state">
+                <p class="text-muted fw-bold m-0 opacity-50" style="font-size: 1.1rem;">📦 Инвентарь пуст</p>
             </div>
         }
     }
@@ -711,5 +956,17 @@
         ItemRarity.Arcane => "r-arcane",
         ItemRarity.Nameless => "r-nameless",
         _ => "r-common"
+    };
+
+    private string GetRarityTextColor(ItemRarity? rarity) => rarity switch
+    {
+        ItemRarity.Common => "rarity-text-common",
+        ItemRarity.Uncommon => "rarity-text-uncommon",
+        ItemRarity.Rare => "rarity-text-rare",
+        ItemRarity.Epic => "rarity-text-epic",
+        ItemRarity.Legendary => "rarity-text-legendary",
+        ItemRarity.Arcane => "rarity-text-arcane",
+        ItemRarity.Nameless => "rarity-text-nameless",
+        _ => "rarity-text-common"
     };
 }
