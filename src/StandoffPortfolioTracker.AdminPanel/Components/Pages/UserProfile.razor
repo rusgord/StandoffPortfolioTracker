@@ -7,256 +7,304 @@
 @using StandoffPortfolioTracker.AdminPanel.Services
 @using System.Security.Claims
 @using Microsoft.Extensions.DependencyInjection
+@using System.Text.Json
 @inject IServiceScopeFactory ScopeFactory
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ToastService ToastService
 @rendermode InteractiveServer
 
 <style>
-    /* === ОБЩИЕ СТИЛИ === */
-    .profile-container {
-        max-width: 1100px;
-        margin: 0 auto;
+    /* === Global === */
+    body {
+        background-color: #f8f9fa;
+        font-family: 'Inter', sans-serif;
+        color: #344767;
     }
 
-    .text-gold {
-        color: #FFD700 !important;
+    .text-gradient-gold {
+        background: linear-gradient(135deg, #FFD700, #FDB931);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         font-weight: 800;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* === ШАПКА === */
+    /* === Profile Header === */
+    .profile-header-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: visible; /* Важно: разрешаем элементам выходить за границы */
+    }
+
     .profile-cover {
         height: 160px;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         border-radius: 16px 16px 0 0;
         position: relative;
+        overflow: hidden; /* Скрываем всё, что внутри обложки */
     }
 
-    .profile-avatar-wrapper {
+        .profile-cover::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 10% 20%, rgba(255,255,255,0.05) 0%, transparent 20%), radial-gradient(circle at 90% 80%, rgba(255,255,255,0.05) 0%, transparent 20%);
+        }
+
+    /* === AVATAR POSITIONING === */
+    /* Вынесен из profile-cover, чтобы не обрезался */
+    .avatar-container-absolute {
         position: absolute;
-        bottom: -50px;
+        /* 160px (высота обложки) - 65px (половина высоты аватара) = 95px */
+        top: 95px;
         left: 40px;
-        padding: 4px;
-        background: white;
+        width: 130px;
+        height: 130px;
+        z-index: 20; /* Поверх всего */
+    }
+
+    .avatar-frame {
+        width: 100%;
+        height: 100%;
         border-radius: 50%;
+        padding: 4px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
 
-    .profile-avatar {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        object-fit: cover;
-        background-color: #f8f9fa;
-    }
-
-    .profile-info-bar {
-        padding: 60px 40px 25px 40px;
-        background: white;
-        border-radius: 0 0 16px 16px;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.03);
-    }
-
-    /* === КАРТОЧКИ СТАТИСТИКИ (ПОЛУМЕСЯЦ) === */
-    .stat-card {
-        background: white;
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        border: 1px solid #f1f5f9;
+    .avatar-img {
+        width: 100%;
         height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        background-color: #f1f5f9;
+        border: 2px solid #fff;
+    }
+
+    /* Рамки аватара */
+    .avatar-frame.default {
+        border: none;
+    }
+
+    .avatar-frame.gold {
+        background: linear-gradient(135deg, #FFD700, #FDB931);
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+        padding: 5px;
+    }
+
+    .avatar-frame.neon {
+        background: linear-gradient(135deg, #00f3ff, #0078ff);
+        box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+        padding: 5px;
+    }
+
+    .avatar-frame.fire {
+        background: linear-gradient(135deg, #ff4500, #ff8c00);
+        box-shadow: 0 0 30px rgba(255, 69, 0, 0.4);
+        padding: 5px;
+    }
+
+    /* === INFO BAR === */
+    .profile-info-body {
+        padding-top: 15px;
+        padding-bottom: 25px;
+        padding-right: 30px;
+        /* Отступ слева = ширина аватара (130) + позиция (40) + отступ (20) */
+        padding-left: 190px;
+        min-height: 80px;
+    }
+
+    /* === MOBILE ADAPTIVE === */
+    @@media (max-width: 991px) {
+        .profile-cover
+
+    {
+        height: 140px;
+    }
+
+    .avatar-container-absolute {
+        width: 110px;
+        height: 110px;
+        left: 50%;
+        transform: translateX(-50%);
+        /* 140px - 55px = 85px */
+        top: 85px;
+    }
+
+    .profile-info-body {
+        padding-left: 20px;
+        padding-right: 20px;
+        padding-top: 65px; /* Место под аватарку */
+        text-align: center;
+    }
+
+    .info-badges {
+        justify-content: center;
+    }
+
+    /* Принудительно центрируем заголовок на мобильных */
+    h1.d-flex {
+        justify-content: center !important;
+    }
+
+    }
+
+    /* === UI Elements === */
+    .badge-role {
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 5px 10px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        vertical-align: middle;
+        text-transform: uppercase;
+        line-height: 1;
+        height: fit-content;
+    }
+
+    .badge-premium {
+        background: linear-gradient(135deg, #FFD700, #FDB931);
+        color: #342a00;
+        border: 1px solid rgba(255,215,0,0.3);
+    }
+
+    .badge-lite {
+        background: linear-gradient(135deg, #0dcaf0, #0d6efd);
+        color: white;
+        border: 1px solid rgba(13,202,240,0.3);
+    }
+
+    .game-id-pill {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-family: monospace;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 5px 12px;
+        border-radius: 30px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .game-id-pill:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+    /* Stats Cards */
+    .stat-card-modern {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        height: 100%;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.02);
         position: relative;
         overflow: hidden;
-        transition: transform 0.2s, box-shadow 0.2s;
+        transition: transform 0.2s;
     }
 
-        .stat-card:hover {
+        .stat-card-modern:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
         }
 
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 6px;
-            height: 60%;
-            border-radius: 0 8px 8px 0;
-            background-color: var(--accent-color, #cbd5e1);
-        }
-
-    .card-gold {
-        --accent-color: #FFD700;
+    .stat-bg-icon {
+        position: absolute;
+        right: -15px;
+        bottom: -15px;
+        font-size: 6rem;
+        opacity: 0.05;
+        transform: rotate(-10deg);
+        pointer-events: none;
     }
 
-    .card-green {
-        --accent-color: #10b981;
-    }
-
-    .stat-label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: #64748b;
-        margin-bottom: 5px;
-    }
-
-    .stat-value {
+    .stat-value-huge {
         font-size: 2rem;
         font-weight: 800;
-        color: #0f172a;
-        line-height: 1.1;
+        color: #344767;
+        line-height: 1;
     }
 
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
+    .stat-label-modern {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #8392ab;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
     }
 
-    .bg-icon-gold {
-        background: rgba(255, 215, 0, 0.15);
-        color: #b49600;
-    }
-
-    .bg-icon-green {
-        background: rgba(16, 185, 129, 0.15);
-        color: #10b981;
-    }
-
-    /* === ТОП АКТИВЫ (ITEM CARDS) === */
-    .item-card {
+    /* Skin Display Cards */
+    .skin-display-card {
         background: white;
-        border-radius: 12px;
-        padding: 12px;
-        border: 1px solid #f1f5f9;
+        border-radius: 14px;
+        border: 1px solid #f0f2f5;
+        padding: 10px;
         position: relative;
+        transition: all 0.3s ease;
         overflow: hidden;
-        transition: all 0.2s;
+        height: 100%;
         display: flex;
-        align-items: center;
+        flex-direction: column;
         box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     }
 
-        .item-card:hover {
-            border-color: #e2e8f0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        .skin-display-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+            border-color: #e3e6f0;
         }
 
-    /* Полоска редкости */
-    .rarity-strip {
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 4px;
-    }
-
-    .rarity-common {
-        background-color: #b0c3d9;
-    }
-
-    .rarity-uncommon {
-        background-color: #5e98d9;
-    }
-
-    .rarity-rare {
-        background-color: #4b69ff;
-    }
-
-    .rarity-epic {
-        background-color: #8847ff;
-    }
-
-    .rarity-legendary {
-        background-color: #d32ce6;
-    }
-
-    .rarity-arcane {
-        background-color: #eb4b4b;
-    }
-
-    .rarity-unknown {
-        background-color: #cbd5e1;
-    }
-
-    .item-img-box {
-        width: 55px;
-        height: 55px;
-        background: #f8fafc;
-        border-radius: 10px;
+    .skin-img-wrapper {
+        flex-grow: 1;
+        min-height: 100px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 12px;
-        flex-shrink: 0;
-        position: relative;
+        background: radial-gradient(circle, #f8fafc 0%, #fff 70%);
+        border-radius: 12px;
+        margin-bottom: 8px;
     }
 
-        .item-img-box img {
+        .skin-img-wrapper img {
             max-width: 90%;
             max-height: 90%;
             object-fit: contain;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.15));
+            transition: transform 0.3s;
         }
 
-    .item-info {
-        flex-grow: 1;
-        min-width: 0;
-        line-height: 1.2;
+    .skin-display-card:hover img {
+        transform: scale(1.1) rotate(2deg);
     }
 
-    .weapon-name {
-        font-size: 0.7rem;
-        color: #94a3b8;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    .rarity-line {
+        height: 3px;
+        width: 30px;
+        margin: 0 auto 6px auto;
+        border-radius: 2px;
     }
 
-    .skin-name {
-        font-weight: 700;
-        color: #334155;
-        font-size: 0.95rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* Бейдж StatTrak */
-    .st-badge {
-        font-size: 0.6rem;
-        background: linear-gradient(45deg, #FF8008, #FFC837);
-        color: white;
-        padding: 1px 4px;
-        border-radius: 4px;
-        margin-left: 6px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        vertical-align: middle;
-        box-shadow: 0 2px 4px rgba(255, 165, 0, 0.3);
-    }
-
-    .item-values {
-        text-align: right;
-        flex-shrink: 0;
-        margin-left: 10px;
-    }
-
-    .item-price {
-        font-weight: 800;
-        font-size: 1rem;
-        color: #0f172a;
-    }
-
-    /* ROI (Прибыль) */
+    /* ROI Badges */
     .item-roi {
         font-size: 0.7rem;
         font-weight: 700;
@@ -264,6 +312,7 @@
         border-radius: 4px;
         display: inline-flex;
         align-items: center;
+        margin-top: 4px;
     }
 
     .roi-plus {
@@ -275,54 +324,121 @@
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;
     }
+
+    /* Rarity Colors */
+    .r-common {
+        background: #b0c3d9;
+    }
+
+    .r-uncommon {
+        background: #5e98d9;
+    }
+
+    .r-rare {
+        background: #4b69ff;
+    }
+
+    .r-epic {
+        background: #8847ff;
+    }
+
+    .r-legendary {
+        background: #d32ce6;
+    }
+
+    .r-arcane {
+        background: #eb4b4b;
+    }
+
+    .r-nameless {
+        background: linear-gradient(to right, #FFD700, #FDB931);
+    }
 </style>
 
-<div class="container-fluid profile-container">
+<div class="container-fluid py-4" style="max-width: 1200px;">
     @if (isLoading)
     {
-        <div class="text-center mt-5"><div class="spinner-border text-primary"></div></div>
+        <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        </div>
     }
     else if (targetUser == null)
     {
-        <div class="alert alert-danger shadow-sm border-0 rounded-3">🚫 Пользователь не найден.</div>
+        <div class="text-center py-5">
+            <h3>Пользователь не найден 🤷‍♂️</h3>
+            <a href="/" class="btn btn-primary rounded-pill mt-3">На главную</a>
+        </div>
     }
     else if (!targetUser.IsProfilePublic && !IsOwner)
     {
-        <div class="text-center mt-5 py-5 bg-white rounded-4 shadow-sm">
-            <i class="bi bi-lock-fill display-1 text-muted opacity-25"></i>
-            <h3 class="mt-3 text-secondary">Этот профиль скрыт</h3>
+        <div class="profile-header-card text-center py-5">
+            <div class="display-1 text-secondary opacity-25 mb-3"><i class="bi bi-lock-fill"></i></div>
+            <h3 class="fw-bold text-dark">Профиль скрыт</h3>
+            <p class="text-muted">Пользователь ограничил доступ к своему профилю.</p>
         </div>
     }
     else
     {
-        <div>
-            <div class="profile-cover">
-                <div class="profile-avatar-wrapper">
-                    <img src="@(string.IsNullOrEmpty(targetUser.AvatarUrl) ? "/images/default-avatar.png" : targetUser.AvatarUrl)" class="profile-avatar" />
+        <div class="profile-header-card">
+            <div class="profile-cover"></div>
+
+            <div class="avatar-container-absolute">
+                <div class="avatar-frame @(targetUser.ProfileFrame ?? "default")">
+                    <img src="@(string.IsNullOrEmpty(targetUser.AvatarUrl) ? "/images/default-avatar.png" : targetUser.AvatarUrl)" class="avatar-img" />
                 </div>
             </div>
 
-            <div class="profile-info-bar d-flex justify-content-between align-items-start flex-wrap gap-3">
-                <div style="padding-left: 10px;">
-                    <h2 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                        @(string.IsNullOrEmpty(targetUser.DisplayName) ? targetUser.UserName : targetUser.DisplayName)
-                        @if (userRoles.Contains("Admin"))
-                        {
-                            <i class="bi bi-patch-check-fill text-primary fs-5" title="Admin"></i>
-                        }
-                    </h2>
+            <div class="profile-info-body">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center align-items-md-start gap-2">
+
+                    <div class="text-center text-md-start w-100">
+                        <h1 class="fw-bold text-dark mb-1 d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-2" style="font-size: 1.8rem;">
+                            <span>@(string.IsNullOrEmpty(targetUser.DisplayName) ? targetUser.UserName : targetUser.DisplayName)</span>
+                            <div class="d-inline-flex align-items-center gap-2">
+                                @if (userRoles.Contains("Admin"))
+                                {
+                                    <i class="bi bi-patch-check-fill text-primary" style="font-size: 1.2rem;" title="Администратор"></i>
+                                }
+
+                                @if (targetUser.SubType == SubscriptionType.Premium)
+                                {
+                                    <span class="badge-role badge-premium"><i class="bi bi-stars"></i> PREMIUM</span>
+                                }
+                                else if (targetUser.SubType == SubscriptionType.Lite)
+                                {
+                                    <span class="badge-role badge-lite"><i class="bi bi-lightning-fill"></i> LITE</span>
+
+                                }
+                            </div>
+                        </h1>
+
+                        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-3 info-badges mb-2">
+                            <span class="text-muted fw-bold small">@targetUser.Email</span>
+
+                            @if ((targetUser.IsGameIdPublic || IsOwner) && !string.IsNullOrEmpty(targetUser.StandoffGameId))
+                            {
+                                <div class="game-id-pill" @onclick="CopyGameId" title="Скопировать ID">
+                                    <i class="bi bi-controller text-muted"></i> @targetUser.StandoffGameId
+                                </div>
+                            }
+                            else if (IsOwner && string.IsNullOrEmpty(targetUser.StandoffGameId))
+                            {
+                                <a href="settings" class="game-id-pill text-decoration-none border-dashed text-primary bg-white">
+                                    <i class="bi bi-plus-circle"></i> Указать ID
+                                </a>
+                            }
+
+                            <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i> @targetUser.JoinDate.ToString("MMMM yyyy")</span>
+                        </div>
+                    </div>
+
                     @if (IsOwner)
                     {
-                        <div class="text-muted small mb-2">@targetUser.UserName</div>
+                        <a href="settings" class="btn btn-light border fw-bold rounded-pill px-4 shadow-sm text-nowrap mt-3 mt-md-0 btn-sm">
+                            <i class="bi bi-gear-fill me-2"></i> Настройки
+                        </a>
                     }
-                    <div class="d-flex gap-4 text-secondary small mt-2">
-                        <span><i class="bi bi-calendar3 me-1"></i> На проекте с @targetUser.JoinDate.ToShortDateString()</span>
-                    </div>
                 </div>
-                @if (IsOwner)
-                {
-                    <a href="settings" class="btn btn-outline-primary px-4 rounded-pill fw-bold"><i class="bi bi-gear-fill me-1"></i> Настройки</a>
-                }
             </div>
         </div>
 
@@ -330,25 +446,24 @@
             @if (targetUser.ShowPortfolioValue || IsOwner)
             {
                 <div class="col-md-6">
-                    <div class="stat-card card-gold">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="stat-label">Стоимость Портфеля</div>
-                                <div class="stat-value">
-                                    @portfolioValue.ToString("N0") <span class="text-gold">G</span>
-                                </div>
-                            </div>
-                            <div class="stat-icon bg-icon-gold"><i class="bi bi-wallet2"></i></div>
+                    <div class="stat-card-modern">
+                        <div class="stat-bg-icon text-warning"><i class="bi bi-wallet2"></i></div>
+                        <div class="stat-label-modern">Стоимость портфеля</div>
+                        <div class="stat-value-huge">
+                            @portfolioValue.ToString("N0") <span class="text-gradient-gold" style="font-size: 0.6em;">G</span>
                         </div>
+
                         @if (targetUser.PortfolioGoal > 0)
                         {
                             <div class="mt-4">
-                                <div class="d-flex justify-content-between small mb-1 fw-bold text-secondary">
-                                    <span>Цель: @targetUser.PortfolioGoal.ToString("N0") <span class="text-gold">G</span></span>
+                                <div class="d-flex justify-content-between text-muted small fw-bold mb-1">
+                                    <span>Цель: @targetUser.PortfolioGoal.ToString("N0")</span>
                                     <span>@((portfolioValue / targetUser.PortfolioGoal * 100).ToString("N0"))%</span>
                                 </div>
-                                <div class="progress bg-light" style="height: 6px;">
-                                    <div class="progress-bar bg-warning" style="width: @(Math.Min(100, (portfolioValue/targetUser.PortfolioGoal)*100))%"></div>
+                                <div class="progress" style="height: 6px; border-radius: 10px; background: #edf2f7;">
+                                    <div class="progress-bar bg-warning" role="progressbar"
+                                         style="width: @(Math.Min(100, (portfolioValue/targetUser.PortfolioGoal)*100))%; border-radius: 10px;">
+                                    </div>
                                 </div>
                             </div>
                         }
@@ -359,102 +474,124 @@
             @if (targetUser.ShowTopItems || IsOwner)
             {
                 <div class="col-md-6">
-                    <div class="stat-card card-green">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <div class="stat-label">Лучший Актив</div>
-                                @if (topItems.Any())
-                                {
-                                    var best = topItems.First();
-                                    <div class="stat-value">@best.CurrentValue.ToString("N0") <span class="text-gold">G</span></div>
-                                    <div class="small text-muted mt-1 text-truncate fw-bold">@best.SkinName</div>
-                                }
-                                else
-                                {
-                                    <div class="stat-value text-muted">-</div>
-                                }
+                    <div class="stat-card-modern">
+                        <div class="stat-bg-icon text-success"><i class="bi bi-trophy"></i></div>
+                        <div class="stat-label-modern">Самый ценный скин</div>
+                        @if (topItems.Any())
+                        {
+                            var best = topItems.First();
+                            <div class="d-flex align-items-center gap-3 mt-2">
+                                <div style="width: 60px; height: 60px; background: #f8fafc; border-radius: 12px; padding: 5px; border: 1px solid #edf2f7;">
+                                    <img src="@best.ImageUrl" style="width: 100%; height: 100%; object-fit: contain;" />
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark fs-5 text-truncate" style="max-width: 250px;">@best.Name</div>
+                                    <div class="text-muted small mb-1">@best.SkinName</div>
+                                    <div class="fw-bold text-success">@best.CurrentValue.ToString("N0") G</div>
+                                </div>
                             </div>
-                            <div class="stat-icon bg-icon-green"><i class="bi bi-trophy"></i></div>
-                        </div>
+                        }
+                        else
+                        {
+                            <div class="text-muted fs-5 fw-bold mt-3 opacity-50">Нет данных</div>
+                        }
                     </div>
                 </div>
             }
         </div>
 
-        @if (targetUser.ShowTopItems || IsOwner)
+        @if (showcaseItems.Any())
         {
-            <div class="mb-3 d-flex align-items-center gap-2">
-                <i class="bi bi-star-fill text-warning"></i>
-                <h5 class="fw-bold text-dark m-0">Топ Активы</h5>
-            </div>
-
-            <div class="row g-3">
-                @if (topItems.Any())
-                {
-                    @foreach (var item in topItems)
+            <div class="mb-5">
+                <h5 class="fw-bold mb-3 ps-1 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-star-fill text-warning"></i> Витрина
+                </h5>
+                <div class="row g-3">
+                    @foreach (var item in showcaseItems)
                     {
-                        <div class="col-lg-4 col-md-6">
-                            <div class="item-card">
-                                <div class="rarity-strip @GetRarityClass(item.Rarity)"></div>
+                        <div class="col-6 col-md-3">
+                            <div class="skin-display-card">
+                                <div class="rarity-line @GetRarityCss(item.ItemBase?.Rarity)"></div>
 
-                                <div class="item-img-box position-relative">
-                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                    {
-                                        <img src="@item.ImageUrl" />
-                                    }
-
-                                    @if (item.IsStatTrack)
-                                    {
-                                        <span class="position-absolute top-0 end-0 badge bg-warning text-dark border border-light rounded-pill m-1 py-0 px-1"
-                                              style="font-size: 0.6rem; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                            ST
-                                        </span>
-                                    }
+                                <div class="skin-img-wrapper">
+                                    <img src="@item.ItemBase?.ImageUrl" />
                                 </div>
 
-                                <div class="item-info overflow-hidden">
-                                    <div class="item-name text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 0.5px;">
-                                        @item.Name
-                                    </div>
+                                <div class="text-center mt-auto">
+                                    <div class="text-uppercase small text-muted fw-bold" style="font-size: 0.65rem;">@item.ItemBase?.Name</div>
+                                    <div class="fw-bold text-dark text-truncate">@item.ItemBase?.SkinName</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
 
-                                    <div class="fw-bold text-dark text-truncate" style="font-size: 0.95rem;" title="@item.SkinName">
-                                        @(string.IsNullOrEmpty(item.SkinName) ? item.Name : item.SkinName)
-                                    </div>
+        @if ((targetUser.ShowTopItems || IsOwner) && topItems.Any())
+        {
+            <div class="mb-5">
+                <h5 class="fw-bold mb-3 ps-1 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-graph-up-arrow text-primary"></i> Топ активы
+                </h5>
+                <div class="row g-3">
+                    @foreach (var item in topItems)
+                    {
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="skin-display-card">
+                                <div class="rarity-line @GetRarityCss(item.Rarity)"></div>
+                                @if (item.IsStatTrack)
+                                {
+                                    <span class="position-absolute top-0 end-0 m-2 badge bg-warning text-dark" style="font-size: 0.6em;">ST</span>
+                                }
 
-                                    <div class="mt-1">
+                                <div class="skin-img-wrapper">
+                                    <img src="@item.ImageUrl" />
+                                </div>
+
+                                <div class="text-center mt-auto">
+                                    <div class="text-uppercase small text-muted fw-bold" style="font-size: 0.65rem;">@item.Name</div>
+                                    <div class="fw-bold text-dark text-truncate mb-1" style="font-size: 0.85rem;">@item.SkinName</div>
+
+                                    <div class="mb-2">
                                         @if (item.RoiPercent >= 0)
                                         {
                                             <span class="item-roi roi-plus">
-                                                <i class="bi bi-graph-up-arrow me-1"></i>+@item.RoiPercent.ToString("N1")%
+                                                <i class="bi bi-graph-up-arrow me-1"></i>+@item.RoiPercent.ToString("N0")%
                                             </span>
                                         }
                                         else
                                         {
                                             <span class="item-roi roi-minus">
-                                                <i class="bi bi-graph-down-arrow me-1"></i>@item.RoiPercent.ToString("N1")%
+                                                <i class="bi bi-graph-down-arrow me-1"></i>@item.RoiPercent.ToString("N0")%
                                             </span>
                                         }
                                     </div>
-                                </div>
 
-                                <div class="item-values">
-                                    <div class="item-price">@item.CurrentValue.ToString("N0") <span class="text-gold" style="font-size:0.8em">G</span></div>
-                                    <div class="text-muted small" style="font-size: 0.7rem;">Total</div>
+                                    <div class="bg-light rounded-pill py-1 px-2 fw-bold text-dark small">
+                                        @item.CurrentValue.ToString("N0") <span class="text-warning">G</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     }
-                }
-                else
-                {
-                    <div class="col-12 text-center py-5 text-muted bg-light rounded-4">
-                        Инвентарь пуст.
-                    </div>
-                }
+                </div>
+            </div>
+        }
+        else if (targetUser.ShowTopItems || IsOwner)
+        {
+            <div class="text-center py-5 bg-white rounded-4 shadow-sm border-dashed">
+                <p class="text-muted fw-bold m-0 opacity-50">Инвентарь пуст</p>
             </div>
         }
     }
 </div>
+
+<script>
+    window.copyText = (text) => {
+        navigator.clipboard.writeText(text).catch(err => console.error('Error copying text: ', err));
+    }
+</script>
 
 @code {
     [Parameter] public string UserId { get; set; }
@@ -464,17 +601,18 @@
     private bool IsOwner = false;
     private IList<string> userRoles = new List<string>();
     private decimal portfolioValue;
+    private List<InventoryItem> showcaseItems = new();
 
-    // DTO с разделением названия
     class TopItemDto
     {
         public string Name { get; set; }
-        public string SkinName { get; set; } // <--- Добавили
-        public bool IsStatTrack { get; set; } // <--- Добавили
+        public string SkinName { get; set; }
+        public bool IsStatTrack { get; set; }
         public string ImageUrl { get; set; }
         public decimal CurrentValue { get; set; }
         public decimal Invested { get; set; }
         public ItemRarity Rarity { get; set; }
+
         public decimal RoiPercent => Invested > 0 ? ((CurrentValue - Invested) / Invested) * 100 : 0;
     }
 
@@ -508,7 +646,6 @@
     private async Task LoadStatsInternal(PortfolioService portfolioService)
     {
         var portfolios = await portfolioService.GetPortfoliosByUserAsync(UserId);
-
         if (portfolios.Any())
         {
             var allItems = new List<InventoryItem>();
@@ -520,13 +657,30 @@
 
             portfolioValue = allItems.Sum(i => (i.ItemBase?.CurrentMarketPrice ?? 0) * 0.8m * i.Quantity);
 
+            if (!string.IsNullOrEmpty(targetUser?.FavoriteSkinsJson))
+            {
+                try
+                {
+                    var favIds = JsonSerializer.Deserialize<List<int>>(targetUser.FavoriteSkinsJson);
+                    if (favIds != null)
+                    {
+                        showcaseItems = allItems
+                            .Where(i => favIds.Contains(i.ItemBaseId))
+                            .DistinctBy(i => i.ItemBaseId)
+                            .Take(4)
+                            .ToList();
+                    }
+                }
+                catch { }
+            }
+
             topItems = allItems.Where(i => i.ItemBase != null)
             .GroupBy(i => i.ItemBase)
             .Select(g => new TopItemDto
                 {
                     Name = g.Key.Name,
-                    SkinName = g.Key.SkinName,     // <--- Заполняем
-                    IsStatTrack = g.Key.IsStatTrack, // <--- Заполняем
+                    SkinName = g.Key.SkinName,
+                    IsStatTrack = g.Key.IsStatTrack,
                     ImageUrl = g.Key.ImageUrl,
                     Rarity = g.Key.Rarity,
                     CurrentValue = g.Sum(x => (x.ItemBase.CurrentMarketPrice * 0.8m) * x.Quantity),
@@ -535,20 +689,27 @@
             .OrderByDescending(x => x.CurrentValue)
             .Take(6)
             .ToList();
-            }
+        }
     }
 
-    private string GetRarityClass(ItemRarity rarity)
+    private async Task CopyGameId()
     {
-        return rarity switch
+        if (!string.IsNullOrEmpty(targetUser?.StandoffGameId))
         {
-            ItemRarity.Common => "rarity-common",
-            ItemRarity.Uncommon => "rarity-uncommon",
-            ItemRarity.Rare => "rarity-rare",
-            ItemRarity.Epic => "rarity-epic",
-            ItemRarity.Legendary => "rarity-legendary",
-            ItemRarity.Arcane => "rarity-arcane",
-            _ => "rarity-unknown"
-        };
+            await JS.InvokeVoidAsync("copyText", targetUser.StandoffGameId);
+            ToastService.ShowToast("ID скопирован!", ToastLevel.Info);
+        }
     }
+
+    private string GetRarityCss(ItemRarity? rarity) => rarity switch
+    {
+        ItemRarity.Common => "r-common",
+        ItemRarity.Uncommon => "r-uncommon",
+        ItemRarity.Rare => "r-rare",
+        ItemRarity.Epic => "r-epic",
+        ItemRarity.Legendary => "r-legendary",
+        ItemRarity.Arcane => "r-arcane",
+        ItemRarity.Nameless => "r-nameless",
+        _ => "r-common"
+    };
 }
