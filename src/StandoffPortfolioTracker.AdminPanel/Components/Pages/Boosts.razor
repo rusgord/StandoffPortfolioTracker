@@ -1,0 +1,546 @@
+﻿@page "/boosts"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.Core.Enums
+@using StandoffPortfolioTracker.AdminPanel.Services
+@using Microsoft.EntityFrameworkCore
+@using System.Threading
+@using StandoffPortfolioTracker.Infrastructure
+@attribute [Authorize]
+@implements IDisposable
+@inject BoostService BoostService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@* Добавляем фабрику для проверки инвентаря *@
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<PageTitle>Standoff Tracker — Отслеживание бустов</PageTitle>
+
+<div class="container-fluid py-4 page-content">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3 header-container">
+        <div class="header-info">
+            <h1 class="display-6 fw-bold mb-2 text-dark">
+                <i class="bi bi-rocket-takeoff me-2 text-accent-orange"></i>Активные бусты
+            </h1>
+            <p class="mb-0 fs-5 text-muted">Мониторинг резких скачков цен в реальном времени</p>
+        </div>
+        <div class="update-badge">
+            <div class="pulse-dot"></div>
+            <span class="badge-text">
+                Обновлено: <strong>@lastUpdate.ToString("HH:mm")</strong>
+                <span class="small opacity-75 ms-1">(авто @refreshInterval мин)</span>
+            </span>
+        </div>
+    </div>
+
+    @if (currentUserSubscription != SubscriptionType.Premium && !isAdmin)
+    {
+        <div class="premium-lock-container animate-in">
+            <div class="lock-content shadow-xl">
+                <div class="lock-icon-wrapper">
+                    <i class="bi bi-shield-lock-fill"></i>
+                </div>
+                <h2 class="fw-bolder mb-3 text-dark">Функция доступна в PRO</h2>
+                <p class="mb-4 mx-auto text-muted" style="max-width: 450px;">
+                    Получайте данные о бустах первыми, пока рынок не успел отреагировать.
+                    Мы отслеживаем каждое изменение цены 24/7.
+                </p>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                    <a href="billing" class="btn btn-gold-premium px-5 py-3 rounded-pill fw-bold text-white">
+                        <i class="bi bi-stars me-2"></i>Оформить подписку
+                    </a>
+                </div>
+            </div>
+            <div class="lock-bg-decoration"></div>
+        </div>
+    }
+    else
+    {
+        @if (boosts.Any())
+        {
+            <div class="row g-4 animate-in">
+                @foreach (var item in boosts)
+                {
+                    // Проверяем, есть ли предмет у пользователя
+                    bool isOwned = _userOwnedItemIds.Contains(item.ItemId);
+
+                    <div class="col-md-6 col-xl-4">
+                        @* Добавляем класс 'owned' если предмет есть в инвентаре *@
+                        <div class="boost-card-modern shadow-sm @(isOwned ? "owned" : "")">
+
+                            <div class="growth-label">
+                                <i class="bi bi-graph-up-arrow me-1"></i>+@item.PercentGrowth.ToString("N0")%
+                            </div>
+
+                            <div class="p-4 card-body-content">
+                                <div class="d-flex align-items-start gap-4 mb-4">
+                                    <div class="item-visual">
+                                        <div class="img-glow"></div>
+                                        <img src="@item.ImageUrl" alt="@item.Name" referrerpolicy="no-referrer" />
+                                        <div class="fire-icon">🔥</div>
+                                    </div>
+
+                                    <div class="item-meta overflow-hidden flex-grow-1">
+                                        @if (isOwned)
+                                        {
+                                            <div class="owned-badge mb-1">
+                                                <i class="bi bi-check-circle-fill me-1"></i>В инвентаре
+                                            </div>
+                                        }
+                                        <h5 class="fw-bold text-truncate mb-1 text-dark">@item.Name</h5>
+                                        <span class="fs-6 text-muted">@item.SkinName</span>
+
+                                        <!-- Item Indicators Row -->
+                                        <div class="item-indicators mt-2 d-flex flex-wrap gap-2">
+                                            <!-- Rarity Badge -->
+                                            <span class="badge rounded-1 fw-bold text-uppercase px-2" 
+                                                  style="background-color: @GetRarityColor(item.Rarity); color: white; font-size: 0.65rem;">
+                                                @item.Rarity
+                                            </span>
+
+                                            <!-- StatTrack Badge -->
+                                            @if (item.IsStatTrack)
+                                            {
+                                                <span class="badge bg-warning text-dark fw-bold px-2" style="font-size: 0.65rem;">
+                                                    <i class="bi bi-star-fill me-1"></i>ST
+                                                </span>
+                                            }
+
+                                            <!-- Pattern Badge -->
+                                            @if (item.IsPattern)
+                                            {
+                                                <span class="badge bg-info text-white fw-bold px-2" style="font-size: 0.65rem;">
+                                                    <i class="bi bi-palette-fill me-1"></i>Pattern
+                                                </span>
+                                            }
+
+                                            <!-- Collection Icon -->
+                                            @if (!string.IsNullOrEmpty(item.CollectionImageUrl))
+                                            {
+                                                <img src="@item.CollectionImageUrl" 
+                                                     class="collection-badge" 
+                                                     title="@item.CollectionName" 
+                                                     referrerpolicy="no-referrer" />
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="price-comparison-box">
+                                    <div class="price-node">
+                                        <span class="label">СРЕДНЯЯ (48ч)</span>
+                                        <div class="price-val old">@item.OldPrice.ToString("F2") <small>G</small></div>
+                                    </div>
+                                    <div class="price-arrow"><i class="bi bi-chevron-right"></i></div>
+                                    <div class="price-node text-end">
+                                        <span class="label">СЕЙЧАС</span>
+                                        <div class="price-val new text-success-dark">@item.NewPrice.ToString("F2") <span>G</span></div>
+                                    </div>
+                                </div>
+
+                                <div class="card-footer-info mt-3 pt-3 text-muted small border-top">
+                                    <i class="bi bi-clock me-1"></i>Обнаружено в @item.DetectedAt.ToLocalTime().ToString("HH:mm")
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state-container text-center shadow-sm">
+                <div class="empty-icon-wrapper mb-4"><i class="bi bi-activity"></i></div>
+                <h3 class="fw-bold text-dark">На рынке всё спокойно</h3>
+                <p class="text-muted">Мы сообщим вам, как только заметим аномальную активность.</p>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<BoostService.BoostItemDto> boosts = new();
+    private SubscriptionType currentUserSubscription = SubscriptionType.None;
+    private bool isAdmin = false;
+    private DateTime lastUpdate = DateTime.Now;
+    private Timer? _refreshTimer;
+    private const int refreshInterval = 10;
+
+    // Храним ID предметов, которые есть у пользователя
+    private HashSet<int> _userOwnedItemIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        if (user != null)
+        {
+            currentUserSubscription = user.SubType;
+            isAdmin = await UserManager.IsInRoleAsync(user, "Admin");
+
+            // Загружаем ID предметов пользователя для подсветки
+            await LoadUserInventory(user.Id);
+        }
+
+        await LoadBoostsData();
+
+        if (currentUserSubscription == SubscriptionType.Premium || isAdmin)
+        {
+            _refreshTimer = new Timer(async _ =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadBoostsData();
+                    // При обновлении данных, можно еще раз проверить инвентарь, если нужно
+                    if (user != null) await LoadUserInventory(user.Id);
+                    StateHasChanged();
+                });
+            }, null, TimeSpan.FromMinutes(refreshInterval), TimeSpan.FromMinutes(refreshInterval));
+        }
+    }
+
+    private async Task LoadUserInventory(string userId)
+    {
+        using var context = await DbFactory.CreateDbContextAsync();
+        // Получаем список уникальных ID предметов, которые есть в портфелях пользователя
+        var itemIds = await context.InventoryItems
+            .Where(ii => ii.PortfolioAccount.UserId == userId)
+            .Select(ii => ii.ItemBaseId)
+            .Distinct()
+            .ToListAsync();
+
+        _userOwnedItemIds = itemIds.ToHashSet();
+    }
+
+    private async Task LoadBoostsData()
+    {
+        if (currentUserSubscription == SubscriptionType.Premium || isAdmin)
+        {
+            boosts = await BoostService.GetBoostsAsync();
+            if (boosts.Any())
+            {
+                lastUpdate = boosts.Max(x => x.DetectedAt).ToLocalTime();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+
+    private string GetRarityColor(ItemRarity rarity) => rarity switch
+    {
+        ItemRarity.Common => "#94a3b8",          // Grey
+        ItemRarity.Uncommon => "#3b82f6",        // Blue
+        ItemRarity.Rare => "#2563eb",            // Dark Blue
+        ItemRarity.Epic => "#8b5cf6",            // Purple
+        ItemRarity.Legendary => "#ec4899",       // Pink
+        ItemRarity.Arcane => "#ef4444",          // Red
+        ItemRarity.Nameless => "#eab308",        // Gold
+        _ => "#cbd5e1"
+    };
+}
+
+<style>
+    /* === ОСНОВНОЙ ФОН И АНИМАЦИИ === */
+    .page-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: #f3f4f6; /* Светло-серый фон страницы */
+        min-height: 100vh;
+    }
+
+    .animate-in {
+        animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* === ЦВЕТОВЫЕ АКЦЕНТЫ === */
+    .text-dark {
+        color: #111827 !important;
+    }
+    /* Почти черный для заголовков */
+    .text-muted {
+        color: #6b7280 !important;
+    }
+    /* Средний серый для подписей */
+    .text-accent-orange {
+        color: #f59e0b;
+    }
+
+    .text-success-dark {
+        color: #059669 !important;
+    }
+    /* Темно-зеленый для новой цены */
+
+    /* === ХЕДЕР === */
+    .update-badge {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        padding: 8px 16px;
+        border-radius: 50px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .badge-text {
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+
+    /* === КАРТОЧКА БУСТА (Светлая тема) === */
+    .boost-card-modern {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+        .boost-card-modern:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+            border-color: #d1d5db;
+        }
+
+        /* === СТИЛЬ ДЛЯ ВЛАДЕЛЬЦА (Если есть в инвентаре) === */
+        .boost-card-modern.owned {
+            border: 2px solid #f59e0b; /* Золотая рамка */
+            background: linear-gradient(to bottom right, #fffbeb, #ffffff); /* Очень легкий золотистый градиент */
+        }
+
+            .boost-card-modern.owned:hover {
+                box-shadow: 0 10px 30px rgba(245, 158, 11, 0.15) !important;
+            }
+
+    .owned-badge {
+        display: inline-flex;
+        align-items: center;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+    }
+
+    /* === ЭЛЕМЕНТЫ КАРТОЧКИ === */
+    .growth-label {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: #10b981;
+        color: #fff;
+        padding: 6px 14px;
+        border-bottom-left-radius: 16px;
+        font-weight: 800;
+        font-size: 0.9rem;
+        z-index: 2;
+    }
+
+    .item-visual {
+        width: 90px;
+        height: 90px;
+        position: relative;
+        flex-shrink: 0;
+        background: #f3f4f6;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .item-visual img {
+            width: 85%;
+            height: 85%;
+            object-fit: contain;
+            position: relative;
+            z-index: 2;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        }
+
+    .fire-icon {
+        position: absolute;
+        bottom: -8px;
+        right: -8px;
+        font-size: 1.4rem;
+        animation: fireBounce 1.5s infinite;
+        filter: drop-shadow(0 2px 4px rgba(249, 115, 22, 0.4));
+    }
+
+    @@keyframes fireBounce {
+        0%, 100% {
+            transform: translateY(0) scale(1);
+        }
+
+        50% {
+            transform: translateY(-4px) scale(1.1);
+        }
+    }
+
+    /* Цены */
+    .price-comparison-box {
+        background: #f9fafb;
+        border: 1px solid #f3f4f6;
+        border-radius: 14px;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .price-node .label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        display: block;
+        margin-bottom: 4px;
+        color: #9ca3af;
+        text-transform: uppercase;
+    }
+
+    .price-val {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+        .price-val.old {
+            color: #9ca3af;
+            text-decoration: line-through;
+            font-size: 1.1rem;
+        }
+
+    .price-arrow {
+        color: #d1d5db;
+        font-size: 1.1rem;
+    }
+
+    .card-footer-info {
+        border-color: #f3f4f6 !important;
+    }
+
+    /* === ITEM INDICATORS === */
+    .item-indicators {
+        align-items: center;
+    }
+
+    .collection-badge {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        opacity: 0.8;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+        .collection-badge:hover {
+            opacity: 1;
+        }
+
+    /* === PREMIUM GATE & EMPTY STATE (Светлая тема) === */
+    .premium-lock-container {
+        padding: 80px 20px;
+        text-align: center;
+        position: relative;
+    }
+
+    .lock-content {
+        position: relative;
+        z-index: 10;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        padding: 50px 40px;
+        border-radius: 30px;
+        max-width: 550px;
+        margin: 0 auto;
+    }
+
+    .lock-icon-wrapper {
+        width: 70px;
+        height: 70px;
+        background: #f3f4f6;
+        color: #667eea;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin: 0 auto 20px;
+    }
+
+    .btn-gold-premium {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: none;
+        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        transition: 0.3s;
+    }
+
+        .btn-gold-premium:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+            color: white;
+        }
+
+    .lock-bg-decoration {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+        background-size: 20px 20px;
+        opacity: 0.5;
+        z-index: 1;
+        mask-image: radial-gradient(circle at center, black, transparent 80%);
+    }
+
+    .empty-state-container {
+        background: #ffffff;
+        border: 2px dashed #e5e7eb;
+        border-radius: 24px;
+        padding: 60px 20px !important;
+    }
+
+    .empty-icon-wrapper {
+        font-size: 3.5rem;
+        color: #d1d5db;
+    }
+</style>

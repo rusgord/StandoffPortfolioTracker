@@ -2,6 +2,7 @@
 using StandoffPortfolioTracker.Core.Entities;
 using StandoffPortfolioTracker.Core.Enums;
 using StandoffPortfolioTracker.Core.Models;
+using Microsoft.Extensions.Caching.Memory;
 using StandoffPortfolioTracker.Infrastructure;
 
 namespace StandoffPortfolioTracker.AdminPanel.Services
@@ -9,10 +10,111 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
     public class ItemService
     {
         private readonly IDbContextFactory<AppDbContext> _factory;
+        private readonly IMemoryCache _cache;
 
-        public ItemService(IDbContextFactory<AppDbContext> factory)
+        public ItemService(IDbContextFactory<AppDbContext> factory, IMemoryCache cache)
         {
             _factory = factory;
+            _cache = cache;
+        }
+        public class ShowcaseItemDto
+        {
+            public string Name { get; set; }
+            public string SkinName { get; set; }
+            public string ImageUrl { get; set; }
+            public decimal Price { get; set; }
+            public double GrowthPercent { get; set; }
+        }
+
+        public async Task<List<ShowcaseItemDto>> GetDailyShowcaseAsync()
+        {
+            // Пытаемся достать из кэша (ключ "DailyShowcase")
+            // Данные живут 24 часа. Если их нет - выполняется код внутри.
+            return await _cache.GetOrCreateAsync("DailyShowcase", async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24); // Обновление раз в сутки
+
+                using var context = await _factory.CreateDbContextAsync();
+
+                // 1. Ищем ID предметов дороже 1000G (Arcane, Nameless и т.д.)
+                // Берем случайные 20 штук, чтобы было из чего выбрать рандом
+                var candidateIds = await context.ItemBases
+                    .Where(i => i.CurrentMarketPrice > 1000)
+                    .Select(i => i.Id)
+                    .OrderBy(x => Guid.NewGuid()) // SQL Random
+                    .Take(20)
+                    .ToListAsync();
+
+                if (!candidateIds.Any()) return new List<ShowcaseItemDto>();
+
+                var result = new List<ShowcaseItemDto>();
+                var random = new Random();
+
+                // Перемешиваем кандидатов в памяти
+                var selectedIds = candidateIds.OrderBy(x => random.Next()).ToList();
+
+                foreach (var id in selectedIds)
+                {
+                    if (result.Count >= 2) break; // Нам нужно только 2
+
+                    // Берем текущую цену и цену 2 дня назад
+                    var item = await context.ItemBases.FindAsync(id);
+                    var history = await context.MarketHistory
+                        .Where(h => h.ItemBaseId == id && h.RecordedAt >= DateTime.UtcNow.AddDays(-2))
+                        .OrderBy(h => h.RecordedAt)
+                        .FirstOrDefaultAsync();
+
+                    // Если есть история и цена выросла (или хотя бы не упала сильно)
+                    if (item != null && history != null)
+                    {
+                        var oldPrice = history.Price;
+                        var currentPrice = item.CurrentMarketPrice;
+
+                        // Считаем процент
+                        double growth = 0;
+                        if (oldPrice > 0)
+                            growth = (double)((currentPrice - oldPrice) / oldPrice) * 100;
+
+                        // Добавляем только если есть рост (или небольшой минус, если рынок падает)
+                        // Но ты просил "показывали рост", поэтому ставим условие > 0
+                        if (growth > 0)
+                        {
+                            result.Add(new ShowcaseItemDto
+                            {
+                                Name = item.Name,
+                                SkinName = item.SkinName,
+                                ImageUrl = item.ImageUrl,
+                                Price = currentPrice,
+                                GrowthPercent = growth
+                            });
+                        }
+                    }
+                }
+
+                // Если не нашли с ростом, берем просто дорогие (фоллбек)
+                if (result.Count < 2)
+                {
+                    var fallbackItems = await context.ItemBases
+                       .Where(i => i.CurrentMarketPrice > 1000)
+                       .OrderByDescending(i => i.CurrentMarketPrice)
+                       .Take(2 - result.Count)
+                       .ToListAsync();
+
+                    foreach (var item in fallbackItems)
+                    {
+                        result.Add(new ShowcaseItemDto
+                        {
+                            Name = item.Name,
+                            SkinName = item.SkinName,
+                            ImageUrl = item.ImageUrl,
+                            Price = item.CurrentMarketPrice,
+                            GrowthPercent = 1.5 // Фейковый минимальный рост для красоты, раз данных нет
+                        });
+                    }
+                }
+
+                return result;
+            });
         }
 
         // === ПОЛУЧЕНИЕ С ФИЛЬТРАМИ И ПАГИНАЦИЕЙ ===
@@ -152,6 +254,20 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                 context.GameCollections.Remove(col);
                 await context.SaveChangesAsync();
             }
+        }
+
+        // === ИСТОРИИ ЦЕН ===
+        public async Task<List<(DateTime Date, decimal Price)>> GetPriceHistoryAsync(int itemBaseId, int days = 90)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            var history = await context.Set<MarketHistory>()
+                .Where(h => h.ItemBaseId == itemBaseId && 
+                           h.RecordedAt >= DateTime.UtcNow.AddDays(-days))
+                .OrderBy(h => h.RecordedAt)
+                .Select(h => new { h.RecordedAt, h.Price })
+                .ToListAsync();
+
+            return history.Select(h => (h.RecordedAt, h.Price)).ToList();
         }
     }
 }

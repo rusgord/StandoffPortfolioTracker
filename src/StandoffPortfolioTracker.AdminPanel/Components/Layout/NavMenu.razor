@@ -1,59 +1,150 @@
-﻿<div class="sidebar-header">
-    <a class="navbar-brand" href="">
-        <i class="bi bi-graph-up-arrow text-warning"></i>
-        <span>STANDOFF TRACKER</span>
-    </a>
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.Core.Enums
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IServiceScopeFactory ScopeFactory
+@rendermode InteractiveServer
+
+@* Оборачиваем меню в контейнер, который управляет шириной *@
+<div class="nav-menu-container @(isCollapsed ? "collapsed" : "")">
+
+    <div class="sidebar-header">
+        <a class="navbar-brand" href="">
+            <div class="brand-icon">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="brand-text">
+                <span>STANDOFF</span>
+                <span class="text-highlight">TRACKER</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="nav-scrollable custom-scrollbar">
+        <nav class="flex-column gap-1 px-2 pb-4">
+
+            <div class="nav-label">ГЛАВНОЕ</div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="dashboard" Match="NavLinkMatch.All" title="Дашборд">
+                    <i class="bi bi-speedometer2"></i>
+                    <span class="nav-text">Дашборд</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="news" title="Новости">
+                    <i class="bi bi-newspaper"></i>
+                    <span class="nav-text">Новости</span>
+                    <span class="badge-new">NEW</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="portfolio" title="Портфель">
+                    <i class="bi bi-briefcase-fill"></i>
+                    <span class="nav-text">Портфель</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-label mt-3">СЕРВИСЫ</div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="market" title="Рынок">
+                    <i class="bi bi-shop-window"></i>
+                    <span class="nav-text flex-grow-1">Рынок</span>
+                    @if (userSubscription == SubscriptionType.None)
+                    {
+                        <span class="badge-lite">LITE+</span>
+                    }
+                </NavLink>
+            </div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="boosts" title="Буст скинов">
+                    <i class="bi bi-rocket-takeoff-fill"></i>
+                    <span class="nav-text flex-grow-1">Буст скинов</span>
+                    @if (userSubscription != SubscriptionType.Premium)
+                    {
+                        <span class="badge-premium">PRO</span>
+                    }
+                </NavLink>
+            </div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="giveaways" title="Розыгрыши">
+                    <i class="bi bi-gift-fill text-danger"></i>
+                    <span class="nav-text">Розыгрыши</span>
+                </NavLink>
+            </div>
+
+            <div class="nav-label mt-3">ПОДДЕРЖКА</div>
+
+            <div class="nav-item">
+                <NavLink class="nav-link" href="help" title="Справка">
+                    <i class="bi bi-question-circle"></i>
+                    <span class="nav-text">Справка</span>
+                </NavLink>
+            </div>
+
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <div class="nav-label mt-3 text-warning">ADMIN</div>
+
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="market-editor" title="Редактор БД">
+                            <i class="bi bi-database-gear"></i>
+                            <span class="nav-text">Редактор БД</span>
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="admin/users" title="Пользователи">
+                            <i class="bi bi-people-fill"></i>
+                            <span class="nav-text">Пользователи</span>
+                        </NavLink>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+
+        </nav>
+    </div>
+
+    <div class="sidebar-footer">
+        <button class="btn-toggle-sidebar" @onclick="ToggleSidebar">
+            <i class="bi @(isCollapsed ? "bi-chevron-right" : "bi-chevron-left")"></i>
+        </button>
+    </div>
 </div>
 
-<div class="nav-scrollable">
-    <nav class="flex-column">
+@code {
+    private SubscriptionType userSubscription = SubscriptionType.None;
+    private bool isAdmin = false;
+    private bool isCollapsed = false;
 
-        <div class="nav-item">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <i class="bi bi-speedometer2"></i> Dashboard
-            </NavLink>
-        </div>
+    private void ToggleSidebar()
+    {
+        isCollapsed = !isCollapsed;
+    }
 
-        <div class="nav-item">
-            <NavLink class="nav-link" href="portfolio">
-                <i class="bi bi-briefcase-fill"></i> Портфель
-            </NavLink>
-        </div>
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
 
-        <div class="nav-divider">СЕРВИСЫ</div>
-
-        <div class="nav-item">
-            <NavLink class="nav-link" href="market">
-                <i class="bi bi-shop"></i>
-                <span class="flex-grow-1">Рынок</span>
-                <span class="badge-premium">PRO</span>
-            </NavLink>
-        </div>
-
-        <div class="nav-item">
-            <NavLink class="nav-link" href="help">
-                <i class="bi bi-question-circle"></i> Справка
-            </NavLink>
-        </div>
-
-        <AuthorizeView Roles="Admin">
-            <Authorized>
-                <div class="nav-divider">ADMIN PANEL</div>
-
-                <div class="nav-item">
-                    <NavLink class="nav-link" href="market-editor">
-                        <i class="bi bi-database-gear"></i> Редактор БД
-                    </NavLink>
-                </div>
-
-                <div class="nav-item">
-                    <NavLink class="nav-link" href="admin/users">
-                        <i class="bi bi-people-fill"></i> Пользователи
-                    </NavLink>
-                </div>
-
-            </Authorized>
-        </AuthorizeView>
-
-    </nav>
-</div>
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            isAdmin = user.IsInRole("Admin");
+            using var scope = ScopeFactory.CreateScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var dbUser = await userManager.GetUserAsync(user);
+            if (dbUser != null)
+            {
+                userSubscription = dbUser.SubType;
+            }
+        }
+    }
+}

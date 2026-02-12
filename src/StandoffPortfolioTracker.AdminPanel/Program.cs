@@ -52,13 +52,19 @@ builder.Services.AddScoped<PortfolioService>();
 builder.Services.AddHttpClient<PriceParserService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<WikiParserService>();
+builder.Services.AddScoped<PriceHistoryFileService>();
+builder.Services.AddScoped<NewsService>();
 builder.Services.AddScoped<BillingService>();
 builder.Services.AddApexCharts();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<SubscriptionWorker>();
+builder.Services.AddHostedService<PriceUpdateBackgroundService>();
 builder.Services.AddScoped<AdminUserService>();
+builder.Services.AddScoped<BoostService>();
 builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider<ApplicationUser>>();
 builder.Services.AddSingleton<GlobalNotificationService>();
+builder.Services.AddSingleton<SystemStatusService>();
 builder.Services.AddHostedService<DonationWorker>();
 
 builder.Services.AddRazorComponents()

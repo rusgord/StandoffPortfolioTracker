@@ -1,0 +1,119 @@
+﻿@page "/news/{Slug}"
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.AdminPanel.Services
+@inject NewsService NewsService
+@inject NavigationManager Nav
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8">
+            @if (post != null)
+            {
+                <div class="mb-4">
+                    <span class="badge bg-primary mb-2">@post.Category</span>
+                    <h1 class="fw-bold display-5 mb-3">@post.Title</h1>
+                    <div class="d-flex align-items-center text-muted small gap-3">
+                        <span><i class="bi bi-calendar3 me-1"></i> @post.CreatedAt.ToString("dd MMMM yyyy")</span>
+                        <span><i class="bi bi-person-fill me-1"></i> Admin</span>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(post.CoverImageUrl))
+                {
+                    <img src="@post.CoverImageUrl" class="img-fluid rounded-4 mb-5 w-100 shadow-sm" />
+                }
+
+                <div class="article-content fs-5" style="line-height: 1.8;">
+                    @foreach (var block in post.Blocks.OrderBy(b => b.OrderIndex))
+                    {
+                        @switch (block.Type)
+                        {
+                            case NewsBlockType.Header:
+                                <h3 class="fw-bold mt-4 mb-3 text-dark">@block.Content</h3>
+                                break;
+                            case NewsBlockType.Paragraph:
+                                <p class="text-secondary mb-4">@((MarkupString)block.Content.Replace("\n", "<br>"))</p>
+                                break;
+                            case NewsBlockType.Image:
+                                <img src="@block.Content" class="img-fluid rounded-3 my-3 shadow-sm w-100" />
+                                break;
+                            case NewsBlockType.Quote:
+                                <blockquote class="border-start border-4 border-warning ps-3 my-4 fst-italic text-muted bg-light p-3 rounded-end">
+                                    @block.Content
+                                </blockquote>
+                                break;
+                            case NewsBlockType.Video:
+                                <div class="ratio ratio-16x9 my-4 rounded overflow-hidden shadow-sm">
+                                    <iframe src="@GetEmbedUrl(block.Content)" allowfullscreen></iframe>
+                                </div>
+                                break;
+                        }
+                    }
+                </div>
+
+                <div class="mt-5 pt-4 border-top">
+                    <a href="/news" class="btn btn-outline-dark rounded-pill">← Назад к новостям</a>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5"><div class="spinner-border"></div></div>
+            }
+        </div>
+
+        <div class="col-lg-4 ps-lg-5">
+            <h5 class="fw-bold mb-4">Читайте также</h5>
+            <div class="d-flex flex-column gap-4">
+                @foreach (var recent in recentNews)
+                {
+                    <a href="/news/@recent.Slug" class="text-decoration-none text-dark group-hover">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-4">
+                                <img src="@recent.CoverImageUrl" class="img-fluid rounded-3 object-fit-cover" style="height: 70px; width: 100%;" />
+                            </div>
+                            <div class="col-8">
+                                <h6 class="fw-bold mb-1 small text-truncate-2">@recent.Title</h6>
+                                <small class="text-muted" style="font-size: 0.75rem;">@recent.CreatedAt.ToString("dd MMM")</small>
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+
+            <div class="mt-5 p-4 bg-dark text-white rounded-4 text-center">
+                <h5 class="fw-bold">Premium Tracker</h5>
+                <p class="small opacity-75">Отслеживай свои скины в реальном времени</p>
+                <a href="billing" class="btn btn-warning btn-sm fw-bold rounded-pill w-100">Купить PRO</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; }
+    private NewsPost? post;
+    private List<NewsPost> recentNews = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        post = await NewsService.GetNewsBySlugAsync(Slug);
+        var all = await NewsService.GetAllNewsAsync();
+        recentNews = all.Where(x => x.Slug != Slug).Take(5).ToList();
+    }
+
+    private string GetEmbedUrl(string url)
+    {
+        // Простая конвертация youtube.com/watch?v=ID -> youtube.com/embed/ID
+        if (url.Contains("watch?v="))
+        {
+            var id = url.Split("v=")[1].Split("&")[0];
+            return $"https://www.youtube.com/embed/{id}";
+        }
+        if (url.Contains("youtu.be/"))
+        {
+            var id = url.Split("youtu.be/")[1];
+            return $"https://www.youtube.com/embed/{id}";
+        }
+        return url;
+    }
+}

@@ -11,11 +11,13 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
     {
         private readonly IDbContextFactory<AppDbContext> _factory;
         private readonly HttpClient _httpClient;
+        private readonly PriceHistoryFileService _priceHistoryService;
 
-        public PriceParserService(IDbContextFactory<AppDbContext> factory, HttpClient httpClient)
+        public PriceParserService(IDbContextFactory<AppDbContext> factory, HttpClient httpClient, PriceHistoryFileService priceHistoryService)
         {
             _factory = factory;
             _httpClient = httpClient;
+            _priceHistoryService = priceHistoryService;
 
             // Притворяемся браузером
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
@@ -320,7 +322,12 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
                         if (decimal.TryParse(cleanPrice, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal price))
                         {
                             item.CurrentMarketPrice = price;
+                            item.LastUpdate = DateTime.UtcNow;
                             historyBag.Add(new MarketHistory { ItemBaseId = item.Id, Price = price, RecordedAt = DateTime.UtcNow });
+
+                            // Сохраняем цену в файл
+                            await _priceHistoryService.SavePriceHistoryAsync(item.Id, price, item);
+
                             Interlocked.Increment(ref successCount);
                         }
                     }
@@ -333,6 +340,10 @@ namespace StandoffPortfolioTracker.AdminPanel.Services
 
             context.MarketHistory.AddRange(historyBag);
             await context.SaveChangesAsync();
+
+            // Периодическая очистка старых данных
+            await _priceHistoryService.CleanupOldHistoryAsync();
+
             return $"Готово! Обновлено: {successCount}. Ошибок: {errorCount}";
         }
 

@@ -1,0 +1,591 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using StandoffPortfolioTracker.Core.Entities
+@using StandoffPortfolioTracker.Core.Enums
+@using StandoffPortfolioTracker.AdminPanel.Services
+@using Microsoft.Extensions.DependencyInjection
+@using System.Security.Claims
+@using System.Text.Json
+
+@inject IServiceScopeFactory ScopeFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject GlobalNotificationService GlobalNotifier
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JS
+@implements IDisposable
+@rendermode InteractiveServer
+
+@* Невидимая подложка для закрытия по клику вне меню *@
+@if (isNotificationsOpen)
+{
+    <div class="notif-click-overlay" @onclick="() => isNotificationsOpen = false"></div>
+}
+
+<div class="top-row px-4 sticky-top d-flex align-items-center justify-content-between"
+     style="background: rgba(26, 29, 33, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05); height: 74px; z-index: 1000;">
+
+    <div class="d-md-none">
+        <i class="bi bi-list fs-3 text-secondary"></i>
+    </div>
+
+    <div class="d-flex align-items-center gap-3 ms-auto">
+        <AuthorizeView>
+            <Authorized>
+                <div class="notification-container position-relative" style="z-index: 1002;">
+                    <button class="btn btn-icon-glass position-relative @(hasUnread ? "shake-anim" : "")" @onclick="ToggleNotifications">
+                        <i class="bi @(hasUnread ? "bi-bell-fill" : "bi-bell") text-secondary"></i>
+                        @if (userNotifications.Count(x => !x.IsRead) > 0)
+                        {
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-dark rounded-circle"></span>
+                        }
+                    </button>
+
+                    @if (isNotificationsOpen)
+                    {
+                        <div class="notification-dropdown shadow-lg animate-in" @onclick:stopPropagation>
+                            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 fw-bold text-white">Уведомления</h6>
+                                @* ИСПРАВЛЕНО: Кнопка очистки *@
+                                <button class="btn-clear-red" @onclick="ClearNotifications">Очистить всё</button>
+                            </div>
+                            <div class="notification-list custom-scrollbar">
+                                @if (userNotifications.Any())
+                                {
+                                    @foreach (var n in userNotifications.OrderByDescending(x => x.Date))
+                                    {
+                                        <div class="notif-item p-3 border-bottom border-secondary border-opacity-10 @(n.IsRead ? "" : "bg-unread")">
+                                            <div class="d-flex gap-3">
+                                                <div class="notif-icon @GetNotifColorClass(n.Type)">
+                                                    <i class="bi @GetNotifIcon(n.Type)"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                                        <div class="notif-title-text">@n.Title</div>
+                                                        <div class="notif-time-text">@GetTimeAgo(n.Date)</div>
+                                                    </div>
+                                                    <div class="notif-msg-text">@n.Message</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center p-4 text-muted small">
+                                        <i class="bi bi-bell-slash fs-4 d-block mb-2 opacity-50"></i>
+                                        Нет новых уведомлений
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <a href="billing" class="btn btn-glass-gold d-flex align-items-center gap-2 text-decoration-none @(isBalanceAnimating ? "balance-pulse" : "")" title="Пополнить баланс">
+                    <i class="bi bi-wallet2 text-warning"></i>
+                    <span class="fw-bold text-white">@currentBalance.ToString("N0")</span>
+                    <span class="text-warning small fw-bold">G</span>
+                </a>
+
+                <div class="vr mx-2 bg-secondary" style="height: 24px; opacity: 0.2;"></div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <a href="settings" class="d-flex align-items-center gap-3 text-decoration-none user-card p-2 rounded-pill transition">
+                        <div class="d-none d-md-flex flex-column align-items-end lh-1">
+                            <div class="fw-bold text-white mb-1">@(!string.IsNullOrEmpty(currentDisplayName) ? currentDisplayName : "User")</div>
+                            <div class="d-flex align-items-center gap-2">
+                                @if (currentSubscription != SubscriptionType.None)
+                                {
+                                    <span class="badge-mini @GetSubscriptionClass(currentSubscription)">
+                                        @if (currentSubscription == SubscriptionType.Premium)
+                                        {
+                                            <i class="bi bi-stars me-1"></i>
+                                        }
+                                        @currentSubscription.ToString().ToUpper()
+                                    </span>
+                                }
+                                <span class="text-secondary small-id">ID: @(myUserId.Length > 4 ? myUserId.Substring(0, 4) : myUserId)</span>
+                            </div>
+                        </div>
+                        <div class="avatar-wrapper @GetAvatarGlowClass(currentSubscription)">
+                            @if (!string.IsNullOrEmpty(currentAvatarUrl))
+                            {
+                                <img src="@currentAvatarUrl" alt="Avatar" />
+                            }
+                            else
+                            {
+                                <div class="avatar-placeholder">
+                                    <span class="fw-bold">@(!string.IsNullOrEmpty(currentDisplayName) ? currentDisplayName[0] : 'U')</span>
+                                </div>
+                            }
+                            <div class="status-indicator"></div>
+                        </div>
+                    </a>
+
+                    <form action="Identity/Account/Logout" method="post" class="d-inline">
+                        <input name="__RequestVerificationToken" type="hidden" value="@GetToken()" />
+                        <input name="returnUrl" type="hidden" value="/" />
+                        <button type="submit" class="btn btn-icon-danger" title="Выйти">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    </form>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+<style>
+    /* Overlay для закрытия кликом везде */
+    .notif-click-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1001;
+        background: transparent;
+    }
+
+    /* ИСПРАВЛЕНО: Анимация появления */
+    .animate-in {
+        animation: dropFadeIn 0.2s ease-out forwards;
+        transform-origin: top right;
+    }
+
+    @@keyframes dropFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    /* ИСПРАВЛЕНО: Кнопка очистки */
+    .btn-clear-red {
+        background: none;
+        border: none;
+        color: #ef4444; /* Красный цвет */
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+        .btn-clear-red:hover {
+            color: #f87171; /* Более светлый красный при наведении */
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+    /* === УВЕДОМЛЕНИЯ: ТЕКСТ И ЦВЕТА === */
+    .notif-title-text {
+        font-size: 13px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .notif-time-text {
+        font-size: 10px;
+        color: #71717a;
+    }
+
+    .notif-msg-text {
+        font-size: 12px;
+        color: #e4e4e7 !important;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .bg-unread {
+        background: rgba(59, 130, 246, 0.08);
+    }
+
+    .notification-dropdown {
+        position: absolute;
+        top: 120%;
+        right: 0;
+        width: 320px;
+        background: #1a1d21;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        z-index: 2000;
+        overflow: hidden;
+    }
+
+    .notification-list {
+        max-height: 350px;
+        overflow-y: auto;
+    }
+
+    .notif-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .notif-boost {
+        background: rgba(250, 204, 21, 0.2);
+        color: #facc15;
+    }
+
+    .notif-money {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .notif-goal {
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+    }
+
+    .notif-news {
+        background: rgba(161, 161, 170, 0.2);
+        color: #a1a1aa;
+    }
+
+    /* === СТИЛИ ПРОФИЛЯ И БАЛАНСА === */
+    .btn-icon-glass {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+        .btn-icon-glass:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+    .shake-anim {
+        animation: bell-shake 2s infinite;
+    }
+
+    @@keyframes bell-shake {
+        0%, 100% {
+            transform: rotate(0);
+        }
+
+        10%, 30%, 50% {
+            transform: rotate(10deg);
+        }
+
+        20%, 40% {
+            transform: rotate(-10deg);
+        }
+    }
+
+    .btn-glass-gold {
+        background: rgba(255, 193, 7, 0.05);
+        border: 1px solid rgba(255, 193, 7, 0.15);
+        border-radius: 12px;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-glass-gold:hover {
+            background: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.4);
+            transform: translateY(-1px);
+        }
+
+    .balance-pulse {
+        animation: goldPulse 0.6s ease-in-out;
+        border-color: #ffc107 !important;
+        background: rgba(255, 193, 7, 0.3) !important;
+        box-shadow: 0 0 20px rgba(255, 193, 7, 0.6);
+    }
+
+    @@keyframes goldPulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .user-card {
+        transition: background 0.2s;
+        border: 1px solid transparent;
+    }
+
+        .user-card:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+    .avatar-wrapper {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        position: relative;
+        padding: 2px;
+        border: 2px solid rgba(255,255,255,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .glow-premium {
+        border-color: #ffc107;
+        box-shadow: 0 0 12px rgba(255, 193, 7, 0.3);
+    }
+
+    .glow-lite {
+        border-color: #0dcaf0;
+        box-shadow: 0 0 8px rgba(13, 202, 240, 0.3);
+    }
+
+    .avatar-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #3a3f47 0%, #2c3036 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+
+    .status-indicator {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 10px;
+        height: 10px;
+        background-color: #198754;
+        border: 2px solid #1a1d21;
+        border-radius: 50%;
+    }
+
+    .badge-mini {
+        font-size: 0.6rem;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+        line-height: 1;
+    }
+
+    .badge-premium {
+        color: #ffc107;
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.2);
+    }
+
+    .badge-lite {
+        color: #0dcaf0;
+        background: rgba(13, 202, 240, 0.1);
+        border: 1px solid rgba(13, 202, 240, 0.2);
+    }
+
+    .small-id {
+        font-size: 0.7rem;
+        opacity: 0.6;
+    }
+
+    .btn-icon-danger {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: transparent;
+        color: #6c757d;
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.2s;
+    }
+
+        .btn-icon-danger:hover {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+</style>
+
+@code {
+    private string? currentAvatarUrl;
+    private string? currentDisplayName;
+    private decimal currentBalance = 0;
+    private SubscriptionType currentSubscription = SubscriptionType.None;
+    private string myUserId = "";
+    private bool isBalanceAnimating = false;
+
+    private bool isNotificationsOpen = false;
+    private bool hasUnread = false;
+    private List<NotificationItem> userNotifications = new();
+
+    public class NotificationItem
+    {
+        public string Title { get; set; } = "";
+        public string Message { get; set; } = "";
+        public DateTime Date { get; set; }
+        public NotifType Type { get; set; }
+        public bool IsRead { get; set; } = false;
+    }
+
+    public enum NotifType { Boost, Money, Goal, News }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserData();
+        GlobalNotifier.OnNotificationReceived += HandleNotification;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrEmpty(myUserId))
+        {
+            await LoadNotificationsFromStorage();
+        }
+    }
+
+    private async Task SaveNotificationsToStorage()
+    {
+        if (string.IsNullOrEmpty(myUserId)) return;
+        var json = JsonSerializer.Serialize(userNotifications);
+        await JS.InvokeVoidAsync("notificationStorage.save", $"notifs_{myUserId}", json);
+    }
+
+    private async Task LoadNotificationsFromStorage()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string>("notificationStorage.load", $"notifs_{myUserId}");
+            if (!string.IsNullOrEmpty(json))
+            {
+                userNotifications = JsonSerializer.Deserialize<List<NotificationItem>>(json) ?? new();
+                hasUnread = userNotifications.Any(x => !x.IsRead);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private async void HandleNotification(string targetId, string msg, ToastLevel level)
+    {
+        if (!string.IsNullOrEmpty(myUserId) && targetId.Equals(myUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            await InvokeAsync(async () =>
+            {
+                var type = DetermineType(msg);
+                userNotifications.Add(new NotificationItem
+                {
+                    Title = GetTitle(type),
+                    Message = msg,
+                    Date = DateTime.Now,
+                    Type = type
+                });
+                hasUnread = true;
+                await SaveNotificationsToStorage();
+                await LoadUserData();
+                if (level == ToastLevel.Success)
+                {
+                    isBalanceAnimating = true;
+                    StateHasChanged();
+                    await Task.Delay(600);
+                    isBalanceAnimating = false;
+                }
+                StateHasChanged();
+            });
+        }
+    }
+
+    private NotifType DetermineType(string msg)
+    {
+        if (msg.Contains("Буст", StringComparison.OrdinalIgnoreCase)) return NotifType.Boost;
+        if (msg.Contains("баланс", StringComparison.OrdinalIgnoreCase) || msg.Contains("зачислен", StringComparison.OrdinalIgnoreCase)) return NotifType.Money;
+        if (msg.Contains("Цель", StringComparison.OrdinalIgnoreCase)) return NotifType.Goal;
+        return NotifType.News;
+    }
+
+    private string GetTitle(NotifType type) => type switch
+    {
+        NotifType.Boost => "🚀 Скачок цены",
+        NotifType.Money => "💰 Пополнение",
+        NotifType.Goal => "🎯 Цель достигнута",
+        _ => "ℹ️ Информация"
+    };
+
+    private string GetNotifIcon(NotifType type) => type switch { NotifType.Boost => "bi-rocket-takeoff", NotifType.Money => "bi-cash-coin", NotifType.Goal => "bi-trophy", _ => "bi-info-circle" };
+    private string GetNotifColorClass(NotifType type) => type switch { NotifType.Boost => "notif-boost", NotifType.Money => "notif-money", NotifType.Goal => "notif-goal", _ => "notif-news" };
+
+    private string GetTimeAgo(DateTime dt)
+    {
+        var span = DateTime.Now - dt;
+        if (span.TotalMinutes < 1) return "сейчас";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}м";
+        return dt.ToString("HH:mm");
+    }
+
+    private async Task ToggleNotifications()
+    {
+        isNotificationsOpen = !isNotificationsOpen;
+        if (isNotificationsOpen && hasUnread)
+        {
+            foreach (var n in userNotifications) n.IsRead = true;
+            hasUnread = false;
+            await SaveNotificationsToStorage();
+        }
+    }
+
+    private async Task ClearNotifications()
+    {
+        userNotifications.Clear();
+        isNotificationsOpen = false;
+        hasUnread = false;
+        await JS.InvokeVoidAsync("notificationStorage.clear", $"notifs_{myUserId}");
+    }
+
+    private async Task LoadUserData()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            using var scope = ScopeFactory.CreateScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            myUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+            var appUser = await userManager.FindByIdAsync(myUserId);
+            if (appUser != null)
+            {
+                currentAvatarUrl = appUser.AvatarUrl;
+                currentDisplayName = !string.IsNullOrEmpty(appUser.DisplayName) ? appUser.DisplayName : appUser.UserName;
+                currentBalance = appUser.Balance;
+                currentSubscription = appUser.SubType;
+            }
+        }
+    }
+
+    private string GetSubscriptionClass(SubscriptionType type) => type switch { SubscriptionType.Premium => "badge-premium", SubscriptionType.Lite => "badge-lite", _ => "" };
+    private string GetAvatarGlowClass(SubscriptionType type) => type switch { SubscriptionType.Premium => "glow-premium", SubscriptionType.Lite => "glow-lite", _ => "" };
+    private string? GetToken() => HttpContextAccessor.HttpContext != null ? Antiforgery.GetAndStoreTokens(HttpContextAccessor.HttpContext).RequestToken : null;
+    public void Dispose() => GlobalNotifier.OnNotificationReceived -= HandleNotification;
+}

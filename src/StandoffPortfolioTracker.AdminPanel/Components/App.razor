@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="@Assets["StandoffPortfolioTracker.AdminPanel.styles.css"]" />
     <script src="_content/Blazor-ApexCharts/js/apex-charts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
@@ -18,6 +19,14 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
+    <script src="js/chart-helper.js"></script>
+    <script>
+        window.notificationStorage = {
+            save: (key, data) => { localStorage.setItem(key, data); },
+            load: (key) => { return localStorage.getItem(key); },
+            clear: (key) => { localStorage.removeItem(key); }
+        };
+    </script>
 </body>
 
 </html>

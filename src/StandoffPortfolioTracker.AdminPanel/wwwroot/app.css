@@ -3,12 +3,14 @@
 ========================================= */
 :root {
     --sidebar-width: 260px;
+    --sidebar-width-collapsed: 70px;
     --topbar-height: 4rem;
-    --sidebar-bg: linear-gradient(180deg, #1b263b 0%, #0f172a 100%);
+    /* Основной фон сайдбара */
+    --sidebar-bg: #121417;
     --gold-color: #FFD700;
     --gold-gradient: linear-gradient(45deg, #FFD700, #FFA500);
     --primary-color: #4e73df;
-    --text-muted: rgba(255,255,255,0.7);
+    --text-muted: rgba(255,255,255,0.6);
 }
 
 html, body {
@@ -24,7 +26,7 @@ a {
 }
 
 /* =========================================
-   2. Layout
+   2. Layout (Сайдбар + Контент)
 ========================================= */
 .page {
     position: relative;
@@ -34,16 +36,17 @@ a {
     overflow: hidden;
 }
 
-/* Сайдбар */
+/* Сама колонка сайдбара (ширина зависит от контента внутри) */
 .sidebar {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-width);
-    background-image: var(--sidebar-bg);
+    width: auto;
+    background-color: var(--sidebar-bg);
     color: white;
     display: flex;
     flex-direction: column;
     z-index: 1000;
     box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Основная область */
@@ -59,133 +62,309 @@ main {
    3. Стилизация Сайдбара (NavMenu)
 ========================================= */
 
+/* Контейнер внутри сайдбара, управляющий сворачиванием */
+.nav-menu-container {
+    width: var(--sidebar-width);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+    /* --- СОСТОЯНИЕ: СВЕРНУТО --- */
+    .nav-menu-container.collapsed {
+        width: var(--sidebar-width-collapsed);
+    }
+
+        /* Прячем текст и бейджи при сворачивании */
+        .nav-menu-container.collapsed .brand-text,
+        .nav-menu-container.collapsed .nav-text,
+        .nav-menu-container.collapsed .badge-premium,
+        .nav-menu-container.collapsed .badge-lite,
+        .nav-menu-container.collapsed .badge-new,
+        .nav-menu-container.collapsed .nav-label {
+            opacity: 0;
+            pointer-events: none;
+            display: none;
+        }
+
+        /* Центрируем логотип и иконки */
+        .nav-menu-container.collapsed .navbar-brand {
+            justify-content: center;
+            padding: 0;
+        }
+
+        .nav-menu-container.collapsed .nav-link {
+            justify-content: center;
+            padding: 12px;
+        }
+
+            .nav-menu-container.collapsed .nav-link i {
+                margin-right: 0;
+                font-size: 1.4rem;
+            }
+
+        /* Центрируем кнопку в футере */
+        .nav-menu-container.collapsed .sidebar-footer {
+            justify-content: center;
+        }
+
+/* =========================================
+   3. Стилизация Сайдбара (NavMenu)
+========================================= */
+
+/* Контейнер, управляющий шириной и анимацией */
+.nav-menu-container {
+    width: var(--sidebar-width);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    background: #1a1d21;
+}
+
+    /* --- ЛОГИКА СВОРАЧИВАНИЯ (Исправление обрезания) --- */
+    .nav-menu-container.collapsed {
+        width: var(--sidebar-width-collapsed); /* ~70px */
+    }
+
+        /* 1. Скрываем весь текст и бейджи, чтобы они не мешали */
+        .nav-menu-container.collapsed .brand-text,
+        .nav-menu-container.collapsed .nav-text,
+        .nav-menu-container.collapsed .badge-premium,
+        .nav-menu-container.collapsed .badge-lite,
+        .nav-menu-container.collapsed .badge-new,
+        .nav-menu-container.collapsed .nav-label {
+            display: none !important;
+            opacity: 0;
+        }
+
+        /* 2. Центрируем Логотип */
+        .nav-menu-container.collapsed .sidebar-header {
+            padding: 0;
+            justify-content: center;
+        }
+
+        .nav-menu-container.collapsed .navbar-brand {
+            width: 100%;
+            justify-content: center; /* Иконка по центру */
+            padding: 0;
+            gap: 0;
+        }
+
+        /* 3. Центрируем Ссылки */
+        .nav-menu-container.collapsed .nav-link {
+            justify-content: center;
+            padding: 12px 0;
+        }
+
+            .nav-menu-container.collapsed .nav-link i {
+                margin-right: 0; /* Убираем отступ от несуществующего текста */
+                font-size: 1.4rem; /* Чуть увеличиваем иконку */
+            }
+
+        /* 4. Центрируем Кнопку внизу */
+        .nav-menu-container.collapsed .sidebar-footer {
+            justify-content: center;
+            padding: 1rem 0;
+        }
+
+/* --- ОБЫЧНЫЕ СТИЛИ ЭЛЕМЕНТОВ --- */
+
 /* Логотип */
 .sidebar-header {
-    height: var(--topbar-height);
+    height: 80px;
     display: flex;
     align-items: center;
     padding: 0 1.5rem;
-    background-color: rgba(0,0,0,0.2);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-shrink: 0;
+    overflow: hidden;
 }
 
-/* Само название и иконка */
 .navbar-brand {
-    font-size: 1rem;
-    font-weight: 800;
-    color: white !important; /* Белый цвет текста */
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    white-space: nowrap;
     display: flex;
     align-items: center;
     gap: 12px;
     text-decoration: none;
+    color: white;
+    width: 100%;
+    overflow: hidden;
 }
 
-/* Меню */
+.brand-icon {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #000;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+
+.brand-text {
+    font-weight: 800;
+    font-size: 1.1rem;
+    line-height: 1.1;
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+.text-highlight {
+    color: var(--gold-color);
+    font-size: 0.8rem;
+}
+
+/* Скролл */
 .nav-scrollable {
     flex: 1;
     overflow-y: auto;
-    padding-top: 1.5rem;
+    overflow-x: hidden;
+    padding-top: 1rem;
 }
 
-/* Пункт меню */
-.nav-item {
-    padding: 2px 12px;
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
 }
 
-    .nav-item .nav-link {
-        display: flex;
-        align-items: center;
-        color: var(--text-muted);
-        padding: 12px 15px;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        font-size: 0.95rem;
-        font-weight: 500;
-        text-decoration: none;
-    }
-
-        /* Иконки */
-        .nav-item .nav-link .bi {
-            font-size: 1.2rem;
-            margin-right: 12px;
-            min-width: 24px;
-            text-align: center;
-            opacity: 0.8;
-        }
-
-        /* Ховер */
-        .nav-item .nav-link:hover {
-            background-color: rgba(255,255,255,0.08);
-            color: white;
-            transform: translateX(4px);
-        }
-
-            .nav-item .nav-link:hover .bi {
-                opacity: 1;
-            }
-
-        /* Активная ссылка */
-        .nav-item .nav-link.active {
-            background-color: rgba(78, 115, 223, 0.2);
-            color: var(--gold-color);
-            font-weight: 700;
-            box-shadow: inset 3px 0 0 0 var(--gold-color);
-        }
-
-            .nav-item .nav-link.active .bi {
-                color: var(--gold-color);
-                opacity: 1;
-            }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
 
 /* Разделители */
-.nav-divider {
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    padding-left: 1.8rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: rgba(255,255,255,0.3);
+.nav-label {
+    font-size: 0.65rem;
     text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 700;
+    padding-left: 14px;
+    margin-top: 12px;
+    margin-bottom: 6px;
     letter-spacing: 1px;
+    white-space: nowrap;
+    text-align: left;
 }
 
-/* PRO Бейдж */
-.badge-premium {
-    background: var(--gold-gradient);
-    color: #000;
-    font-size: 0.65em;
-    padding: 3px 6px;
+/* Пункты меню */
+.nav-item {
+    margin-bottom: 2px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.65);
+    padding: 10px 16px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+    height: 46px;
+    overflow: hidden;
+}
+
+    .nav-link i {
+        font-size: 1.1rem;
+        margin-right: 14px;
+        min-width: 24px;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        transform: translateX(3px);
+    }
+
+/* Убираем сдвиг при наведении, если свернуто */
+.nav-menu-container.collapsed .nav-link:hover {
+    transform: none;
+}
+
+/* Активная ссылка */
+.nav-link.active {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0) 100%);
+    color: var(--gold-color);
+    border-left: 3px solid var(--gold-color);
+    border-radius: 4px 12px 12px 4px;
+}
+
+.nav-menu-container.collapsed .nav-link.active {
+    border-left: none;
+    background: rgba(255, 215, 0, 0.15);
+    border-radius: 12px;
+}
+
+.nav-link.active i {
+    color: var(--gold-color);
+}
+
+/* Бейджи */
+.badge-premium, .badge-lite, .badge-new {
+    font-size: 0.6rem;
+    padding: 2px 6px;
     border-radius: 4px;
     font-weight: 800;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
     margin-left: auto;
 }
 
-/* =========================================
-   4. Верхняя панель (Top Row)
-========================================= */
-.top-row {
-    background-color: white;
-    height: var(--topbar-height);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 2rem;
-    box-shadow: 0 1px 10px rgba(0,0,0,0.05);
-    border-bottom: 1px solid #e3e6f0;
+.badge-premium {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: black;
 }
 
-    .top-row a, .top-row .btn-link {
-        white-space: nowrap;
-        margin-left: 1.5rem;
-        text-decoration: none;
-    }
+.badge-lite {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+}
 
+.badge-new {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+}
+
+/* Футер сайдбара */
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.btn-toggle-sidebar {
+    background: rgba(255,255,255,0.05);
+    border: none;
+    color: rgba(255,255,255,0.5);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .btn-toggle-sidebar:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
 /* =========================================
-   5. Контент
+   4. Контент и прочее
 ========================================= */
 .content {
     padding: 2rem;
@@ -193,62 +372,36 @@ main {
     overflow-y: auto;
 }
 
-/* Адаптив для мобильных */
-@media (max-width: 768px) {
-    .page {
-        flex-direction: column;
-    }
-
-    .sidebar {
-        width: 100%;
-        height: auto;
-        min-height: auto;
-    }
-
-    .nav-scrollable {
-        display: none;
-    }
-    /* Скрываем меню на мобилках пока нет JS */
-    .sidebar-header {
-        justify-content: center;
-    }
-}
-
 /* =========================================
-   6. Уведомления
+   5. Уведомления (Toasts)
 ========================================= */
-
-/* Контейнер уведомления */
 .toast-custom-container {
     z-index: 2000;
-    pointer-events: none; /* Чтобы контейнер не перекрывал клики, пока пуст */
+    pointer-events: none;
 }
 
-/* Само уведомление */
 .toast-card {
-    background: rgba(255, 255, 255, 0.85); /* Полупрозрачный фон */
-    backdrop-filter: blur(12px); /* Эффект матового стекла */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
     border-left: 6px solid;
     border-radius: 10px;
     min-width: 300px;
     max-width: 400px;
-    transform: translateX(120%); /* Спрятано за правым краем */
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; /* Пружинистая анимация */
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
     opacity: 0;
     pointer-events: auto;
     position: relative;
     overflow: hidden;
 }
 
-    /* Состояние видимости */
     .toast-card.show {
         transform: translateX(0);
         opacity: 1;
     }
 
-/* Цветовые схемы для разных уровней */
 .toast-info {
     border-color: #0dcaf0;
 }
@@ -281,7 +434,6 @@ main {
         color: #dc3545;
     }
 
-/* Анимация полосы прогресса (таймер) */
 .toast-progress {
     position: absolute;
     bottom: 0;
@@ -298,7 +450,6 @@ main {
     animation: progress-linear linear forwards;
 }
 
-/* Цвета прогресс-бара под тип уведомления */
 .toast-info .toast-progress-bar {
     background-color: #0dcaf0;
 }
@@ -322,5 +473,32 @@ main {
 
     100% {
         transform: scaleX(0);
+    }
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 768px) {
+    .page {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        min-height: auto;
+    }
+
+    .nav-menu-container {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+    }
+
+    .nav-scrollable {
+        display: none;
+    }
+    /* Скрываем меню на мобильных, нужен отдельный тогл */
+    .sidebar-header {
+        justify-content: center;
     }
 }

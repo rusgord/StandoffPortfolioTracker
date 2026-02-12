@@ -385,6 +385,9 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.Property<int>("Kind")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("LastUpdate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -433,6 +436,72 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.ToTable("MarketHistory");
                 });
 
+            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.NewsBlock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("NewsPostId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NewsPostId");
+
+                    b.ToTable("NewsBlocks");
+                });
+
+            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.NewsPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CoverImageUrl")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("ShortDescription")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NewsPosts");
+                });
+
             modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.PortfolioAccount", b =>
                 {
                     b.Property<int>("Id")
@@ -450,9 +519,11 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("PortfolioAccounts");
                 });
@@ -603,6 +674,26 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
                     b.Navigation("ItemBase");
                 });
 
+            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.NewsBlock", b =>
+                {
+                    b.HasOne("StandoffPortfolioTracker.Core.Entities.NewsPost", null)
+                        .WithMany("Blocks")
+                        .HasForeignKey("NewsPostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.PortfolioAccount", b =>
+                {
+                    b.HasOne("StandoffPortfolioTracker.Core.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.WalletTransaction", b =>
                 {
                     b.HasOne("StandoffPortfolioTracker.Core.Entities.ApplicationUser", "User")
@@ -622,6 +713,11 @@ namespace StandoffPortfolioTracker.Infrastructure.Migrations
             modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.InventoryItem", b =>
                 {
                     b.Navigation("Attachments");
+                });
+
+            modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.NewsPost", b =>
+                {
+                    b.Navigation("Blocks");
                 });
 
             modelBuilder.Entity("StandoffPortfolioTracker.Core.Entities.PortfolioAccount", b =>

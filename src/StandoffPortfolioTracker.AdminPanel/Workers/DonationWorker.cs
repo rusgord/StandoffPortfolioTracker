@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using StandoffPortfolioTracker.Core.Entities;
 using StandoffPortfolioTracker.Infrastructure;
+using StandoffPortfolioTracker.AdminPanel.Services; // Добавляем для GlobalNotifier (опционально)
 
 namespace StandoffPortfolioTracker.AdminPanel.Workers
 {
@@ -25,30 +26,41 @@ namespace StandoffPortfolioTracker.AdminPanel.Workers
         {
             _logger.LogInformation("💰 DonationWorker запущен.");
 
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                try
+                while (!stoppingToken.IsCancellationRequested)
                 {
-                    await CheckDonationsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Ошибка при проверке донатов");
-                }
+                    try
+                    {
+                        await CheckDonationsAsync(stoppingToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Ошибка при проверке донатов");
+                    }
 
-                // Ждем 1 минуту перед следующей проверкой
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    // Ждем 1 минуту. Если сервер остановится, Task.Delay выбросит TaskCanceledException,
+                    // который будет перехвачен внешним блоком catch.
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Штатное завершение работы
+                _logger.LogInformation("DonationWorker остановлен.");
             }
         }
 
-        private async Task CheckDonationsAsync()
+        private async Task CheckDonationsAsync(CancellationToken stoppingToken)
         {
             var token = _configuration["DonationAlerts:AccessToken"];
-            if (string.IsNullOrEmpty(token)) return; // Если токен не настроен, пропускаем
+            if (string.IsNullOrEmpty(token)) return;
 
-            // 1. Запрос к API DonationAlerts
+            // 1. Запрос к API DonationAlerts (с токеном отмены!)
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var response = await _httpClient.GetAsync("https://www.donationalerts.com/api/v1/alerts/donations");
+
+            // Используем stoppingToken, чтобы не зависать при выключении
+            var response = await _httpClient.GetAsync("https://www.donationalerts.com/api/v1/alerts/donations", stoppingToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -56,52 +68,56 @@ namespace StandoffPortfolioTracker.AdminPanel.Workers
                 return;
             }
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(stoppingToken);
             using var doc = JsonDocument.Parse(json);
-            var donations = doc.RootElement.GetProperty("data");
 
-            // Создаем Scope, так как BackgroundService - Singleton, а DbContext - Scoped
+            // Проверка на наличие свойства data, чтобы не падать при пустом ответе
+            if (!doc.RootElement.TryGetProperty("data", out var donations))
+            {
+                return;
+            }
+
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // 2. Перебираем последние донаты
+            // Опционально: можно получить GlobalNotifier, чтобы уведомить юзера в реальном времени
+            var notifier = scope.ServiceProvider.GetService<GlobalNotificationService>();
+
             foreach (var donation in donations.EnumerateArray())
             {
-                var externalId = donation.GetProperty("id").GetInt32().ToString(); // ID доната в DA
+                // Прерываем цикл, если сервер останавливается
+                if (stoppingToken.IsCancellationRequested) break;
+
+                var externalId = donation.GetProperty("id").GetInt32().ToString();
                 var amount = donation.GetProperty("amount").GetDecimal();
                 var currency = donation.GetProperty("currency").GetString();
-                var message = donation.GetProperty("message").GetString() ?? ""; // Сообщение пользователя
+                var message = donation.GetProperty("message").GetString() ?? "";
                 var username = donation.GetProperty("username").GetString() ?? "Аноним";
 
-                // Пропускаем, если валюта не RUB (для простоты, или добавьте конвертацию)
                 if (currency != "RUB") continue;
 
-                // 3. Проверяем, был ли этот донат уже обработан
+                // 3. Проверяем дубликаты (с токеном)
                 var exists = await context.WalletTransactions
-                    .AnyAsync(t => t.ExternalTransactionId == externalId && t.ExternalSystem == "DonationAlerts");
+                    .AnyAsync(t => t.ExternalTransactionId == externalId && t.ExternalSystem == "DonationAlerts", stoppingToken);
 
-                if (exists) continue; // Уже выдали, идем дальше
+                if (exists) continue;
 
-                // 4. Ищем ID пользователя в сообщении
-                // Предполагаем, что юзер вставил свой GUID ID в сообщение
                 var targetUserId = FindUserIdInMessage(message);
 
                 if (string.IsNullOrEmpty(targetUserId))
                 {
-                    _logger.LogWarning($"Донат {externalId} от {username} на {amount}р не содержит ID пользователя. Сообщение: {message}");
+                    // Логируем только новые необработанные, чтобы не спамить в лог при каждом цикле
+                    // (лучше добавить проверку даты доната, чтобы не проверять старые)
                     continue;
                 }
 
-                var user = await context.Users.FindAsync(targetUserId);
-                if (user == null) continue; // Юзер с таким ID не найден
+                var user = await context.Users.FindAsync(new object[] { targetUserId }, stoppingToken);
+                if (user == null) continue;
 
                 // 5. НАЧИСЛЕНИЕ
-                // Курс 1 Рубль = 1 Голда (можно изменить)
-                decimal goldAmount = amount;
-
+                decimal goldAmount = amount; // 1 к 1
                 user.Balance += goldAmount;
 
-                // 6. Сохраняем транзакцию, чтобы не начислить дважды
                 context.WalletTransactions.Add(new WalletTransaction
                 {
                     UserId = targetUserId,
@@ -112,21 +128,23 @@ namespace StandoffPortfolioTracker.AdminPanel.Workers
                     ExternalTransactionId = externalId
                 });
 
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(stoppingToken);
                 _logger.LogInformation($"✅ Зачислено {goldAmount}G пользователю {user.UserName} (Донат {externalId})");
+
+                // Уведомляем пользователя онлайн!
+                if (notifier != null)
+                {
+                    notifier.NotifyUser(targetUserId, $"Вам зачислено {goldAmount:N0} G!", ToastLevel.Success);
+                }
             }
         }
 
-        // Простая логика поиска ID (GUID) в тексте
         private string? FindUserIdInMessage(string message)
         {
             if (string.IsNullOrWhiteSpace(message)) return null;
-
-            // Разбиваем текст на слова и ищем то, что похоже на GUID
             var words = message.Split(new[] { ' ', '\n', ',', ':' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var word in words)
             {
-                // Простая проверка на GUID (36 символов, содержит дефисы)
                 if (Guid.TryParse(word, out _))
                 {
                     return word;

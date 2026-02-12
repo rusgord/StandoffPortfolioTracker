@@ -19,7 +19,6 @@
     /* === Global & Typography === */
     body {
         background-color: #f8f9fc;
-        font-family: 'Inter', sans-serif;
         color: #2c3e50;
     }
 
@@ -28,7 +27,41 @@
         font-weight: 700;
     }
 
-    /* === Rarity Colors === */
+    /* === Stats Cards === */
+    .stats-card {
+        background: #fff;
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .stats-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #858796;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .stats-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #2c3e50;
+    }
+
+    .stats-sub {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 5px;
+    }
+
+    /* === Rarity Colors & Badges === */
     .text-common {
         color: #8fa0b5;
     }
@@ -57,16 +90,7 @@
         background: -webkit-linear-gradient(45deg, #FFD700, #DAA520);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-weight: 800;
-    }
-
-    /* === Background Rarity Badges === */
-    .bg-rarity {
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: white;
         font-weight: 600;
-        font-size: 0.7em;
     }
 
     .bg-common {
@@ -99,15 +123,7 @@
         color: #333;
     }
 
-    .rarity-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 6px;
-    }
-
-    /* === Layout Cards === */
+    /* === Layout === */
     .modern-card {
         background: white;
         border: 1px solid rgba(0,0,0,0.05);
@@ -194,19 +210,18 @@
             color: #4e73df;
         }
 
-    /* === Collection Icons (Light Grey + Glow) === */
     .col-thumb {
         width: 24px;
         height: 24px;
         object-fit: contain;
-        background: #f8f9fa; /* Light grey */
+        background: #f8f9fa;
         border: 1px solid #e9ecef;
         border-radius: 6px;
         padding: 2px;
-        box-shadow: 0 0 8px rgba(0,0,0,0.08); /* Soft glow */
+        box-shadow: 0 0 8px rgba(0,0,0,0.08);
     }
 
-    /* === Filter Toggle Buttons (ST/Pat) === */
+    /* === Filters & Table === */
     .filter-btn {
         flex: 1;
         display: flex;
@@ -230,7 +245,6 @@
             transform: translateY(-1px);
         }
 
-        /* Gold Style for StatTrack */
         .filter-btn.active-st {
             background: linear-gradient(135deg, #ffd700 0%, #fdb931 100%);
             color: #343a40;
@@ -238,7 +252,6 @@
             box-shadow: 0 4px 12px rgba(253, 185, 49, 0.4);
         }
 
-        /* Blue Style for Pattern */
         .filter-btn.active-pat {
             background: linear-gradient(135deg, #4b69ff 0%, #3555f5 100%);
             color: white;
@@ -246,7 +259,6 @@
             box-shadow: 0 4px 12px rgba(75, 105, 255, 0.4);
         }
 
-    /* === Table Styles === */
     .table-container {
         flex-grow: 1;
         overflow-y: auto;
@@ -282,7 +294,6 @@
             background-color: #fcfcfd;
         }
 
-    /* Rarity Borders */
     .row-common {
         border-left-color: #B0C3D9;
     }
@@ -316,7 +327,6 @@
         box-shadow: inset 0 3px 6px rgba(0,0,0,0.02);
     }
 
-    /* === Images === */
     .item-thumb-lg {
         width: 50px;
         height: 50px;
@@ -333,7 +343,81 @@
         object-fit: contain;
     }
 
-    /* === Modal === */
+    /* === Helpers === */
+    .mini-stickers-row {
+        display: flex;
+        gap: 4px;
+    }
+
+    .mini-sticker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #fff;
+        border: 1px solid #eee;
+        padding: 2px;
+        object-fit: contain;
+    }
+
+    .mini-empty {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #e9ecef;
+        border: 1px dashed #ccc;
+        opacity: 0.5;
+    }
+
+    .spin-icon {
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .locked-feature {
+        opacity: 0.5;
+        pointer-events: none;
+        position: relative;
+    }
+
+    .badge-mini {
+        font-size: 0.6rem;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+        line-height: 1;
+    }
+
+    .badge-premium {
+        color: #ffc107;
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.2);
+    }
+
+    .badge-lite {
+        color: #0dcaf0;
+        background: rgba(13, 202, 240, 0.1);
+        border: 1px solid rgba(13, 202, 240, 0.2);
+    }
+
+    /* === Customization Modal Styles (from previous) === */
     .modal-overlay {
         position: fixed;
         top: 0;
@@ -371,7 +455,6 @@
         border-bottom: 1px solid #e3e6f0;
     }
 
-    /* Enlarged Craft Slot */
     .craft-slot {
         width: 80px;
         height: 80px;
@@ -415,7 +498,6 @@
         z-index: 5;
     }
 
-    /* Charm Buttons */
     .charm-action-btn {
         position: absolute;
         width: 28px;
@@ -449,61 +531,6 @@
         color: white;
         z-index: 6;
     }
-
-    /* Mini Stickers */
-    .mini-stickers-row {
-        display: flex;
-        gap: 4px;
-    }
-
-    .mini-sticker {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: #fff;
-        border: 1px solid #eee;
-        padding: 2px;
-        object-fit: contain;
-    }
-
-    .mini-empty {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: #e9ecef;
-        border: 1px dashed #ccc;
-        opacity: 0.5;
-    }
-
-    /* Spin Animation */
-    .spin-icon {
-        animation: spin 1s linear infinite;
-    }
-
-    @@keyframes spin {
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    @@keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(-5px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Locks */
-    .locked-feature {
-        opacity: 0.5;
-        pointer-events: none;
-        position: relative;
-    }
 </style>
 
 <div class="container-fluid py-4" @onclick="CloseAllDropdowns">
@@ -514,15 +541,9 @@
             <p class="text-muted small mb-0">Управляйте своими активами и отслеживайте их стоимость.</p>
         </div>
 
-        <div class="d-flex align-items-center gap-2 bg-white p-2 rounded-4 shadow-sm border">
-            @if (isCreatingPortfolio)
-            {
-                <input type="text" class="form-control form-control-sm border-0 bg-light rounded-pill px-3" placeholder="Название..." @bind="newPortfolioName" style="width: 150px;" />
-                <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold" @onclick="SaveNewPortfolio">ОК</button>
-                <button class="btn btn-sm btn-light rounded-circle" @onclick="() => isCreatingPortfolio = false">✕</button>
-            }
-            else if (availablePortfolios.Any())
-            {
+        @if (!isLoading && availablePortfolios.Any())
+        {
+            <div class="d-flex align-items-center gap-2 bg-white p-2 rounded-4 shadow-sm border">
                 <div class="px-3 border-end">
                     <span class="text-xs text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Аккаунт</span>
                 </div>
@@ -535,8 +556,7 @@
                     <div class="custom-dropdown-menu @(isPortfolioDropdownOpen ? "show" : "")">
                         @foreach (var p in availablePortfolios)
                         {
-                            <div class="dropdown-item-custom @(currentPortfolioId == p.Id ? "bg-light text-primary fw-bold" : "")"
-                                 @onclick="() => SelectPortfolio(p.Id)">
+                            <div class="dropdown-item-custom @(currentPortfolioId == p.Id ? "bg-light text-primary fw-bold" : "")" @onclick="() => SelectPortfolio(p.Id)">
                                 💼 @p.Name
                             </div>
                         }
@@ -550,11 +570,22 @@
                 <button class="btn btn-sm btn-outline-danger rounded-circle" style="width: 32px; height: 32px;" title="Удалить текущий" @onclick="DeleteCurrentPortfolio">
                     <i class="bi bi-trash"></i>
                 </button>
-            }
-        </div>
+            </div>
+        }
     </div>
 
-    @if (!availablePortfolios.Any() && !isCreatingPortfolio)
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+            <div class="text-center">
+                <div class="spinner-border mb-3" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+                <p class="text-muted fw-bold">Загрузка портфелей...</p>
+            </div>
+        </div>
+    }
+    else if (!availablePortfolios.Any() && !isCreatingPortfolio)
     {
         <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
             <div class="text-center p-5 bg-white rounded-4 shadow-sm border">
@@ -567,218 +598,55 @@
             </div>
         </div>
     }
+    else if (isCreatingPortfolio)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+            <div class="text-center p-5 bg-white rounded-4 shadow-sm border">
+                <h3 class="fw-bold mb-3">Создание портфеля</h3>
+                <div class="d-flex gap-2 justify-content-center">
+                    <input type="text" class="form-control form-control-sm border-0 bg-light rounded-pill px-3" placeholder="Название..." @bind="newPortfolioName" style="width: 250px;" />
+                    <button class="btn btn-sm btn-success rounded-pill px-4 fw-bold" @onclick="SaveNewPortfolio">ОК</button>
+                    <button class="btn btn-sm btn-light rounded-circle" @onclick="() => isCreatingPortfolio = false">✕</button>
+                </div>
+            </div>
+        </div>
+    }
     else
     {
-        <div class="row g-4 h-100">
-
-            <div class="col-lg-4">
-                <div class="modern-card">
-                    <div class="card-header-clean bg-light">
-                        <h6 class="m-0 fw-bold text-primary"><i class="bi bi-cart-plus me-2"></i>Добавить актив</h6>
-                        <span class="badge bg-secondary rounded-pill">@inventory.Count / @GetMaxItemsLimit()</span>
-                    </div>
-                    <div class="p-4 overflow-auto">
-                        <EditForm Model="@newItem" OnValidSubmit="HandleBuy">
-                            <DataAnnotationsValidator />
-
-                            <div class="mb-3">
-                                <label class="small fw-bold text-muted mb-1 text-uppercase">Поиск предмета</label>
-                                <div class="input-group mb-2 shadow-sm">
-                                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control border-start-0" placeholder="Название (напр. AKR...)"
-                                           @bind="searchName" @bind:event="oninput" @onkeyup="FilterItems" />
-                                </div>
-
-                                <div class="d-flex gap-2 mb-2">
-                                    <select class="form-select form-select-sm" @bind="selectedTypeString" @bind:after="OnTypeChanged">
-                                        <option value="">Все типы</option>
-                                        @foreach (var t in Enum.GetValues(typeof(ItemType)))
-                                        {
-                                            <option value="@t">@t</option>
-                                        }
-                                    </select>
-
-                                    <div class="custom-dropdown-container w-100">
-                                        <div class="custom-select-trigger" @onclick="() => ToggleDropdown(ref isRarityFilterOpen)" @onclick:stopPropagation>
-                                            @if (string.IsNullOrEmpty(selectedRarity))
-                                            {
-                                                <span>Редкость</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="fw-bold @GetRarityClass(Enum.Parse<ItemRarity>(selectedRarity))">@selectedRarity</span>
-                                            }
-                                            <i class="bi bi-chevron-down small text-muted"></i>
-                                        </div>
-                                        <div class="custom-dropdown-menu @(isRarityFilterOpen ? "show" : "")">
-                                            <div class="dropdown-item-custom" @onclick='() => SelectRarityFilter("")'>Любая</div>
-                                            @foreach (var r in Enum.GetValues(typeof(ItemRarity)).Cast<ItemRarity>())
-                                            {
-                                                <div class="dropdown-item-custom" @onclick="() => SelectRarityFilter(r.ToString())">
-                                                    <span class="rarity-dot @GetRarityBgClass(r)"></span> @r
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="mb-2 custom-dropdown-container">
-                                    <div class="custom-select-trigger" @onclick="() => ToggleDropdown(ref isAddCollectionOpen)" @onclick:stopPropagation>
-                                        @if (selectedCollectionId == 0)
-                                        {
-                                            <span>Любая коллекция</span>
-                                        }
-                                        else
-                                        {
-                                            var c = collections.FirstOrDefault(x => x.Id == selectedCollectionId);
-                                            <div class="d-flex align-items-center gap-2">
-                                                @if (!string.IsNullOrEmpty(c?.ImageUrl))
-                                                {
-                                                    <img src="@c.ImageUrl" class="col-thumb" referrerpolicy="no-referrer" />
-                                                }
-                                                <span class="fw-bold text-truncate">@c?.Name</span>
-                                            </div>
-                                        }
-                                        <i class="bi bi-chevron-down small text-muted"></i>
-                                    </div>
-                                    <div class="custom-dropdown-menu @(isAddCollectionOpen ? "show" : "")">
-                                        <div class="dropdown-item-custom" @onclick="() => SelectAddCollection(0)">Любая коллекция</div>
-                                        @foreach (var c in collections)
-                                        {
-                                            <div class="dropdown-item-custom" @onclick="() => SelectAddCollection(c.Id)">
-                                                @if (!string.IsNullOrEmpty(c.ImageUrl))
-                                                {
-                                                    <img src="@c.ImageUrl" class="col-thumb" referrerpolicy="no-referrer" />
-                                                }
-                                                <span>@c.Name</span>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-
-                                <div class="d-flex gap-2 mt-2">
-                                    <div class="filter-btn @(isStatTrackFilter ? "active-st" : "")" @onclick="ToggleST">
-                                        <i class="bi @(isStatTrackFilter ? "bi-check-circle-fill" : "bi-circle")"></i> StatTrack™
-                                    </div>
-                                    <div class="filter-btn @(isPatternFilter ? "active-pat" : "")" @onclick="TogglePT">
-                                        <i class="bi @(isPatternFilter ? "bi-check-circle-fill" : "bi-circle")"></i> Pattern
-                                    </div>
-                                </div>
-                            </div>
-
-                            <hr class="text-muted opacity-25 my-4" />
-
-                            <div class="mb-4 custom-dropdown-container">
-                                <label class="small fw-bold text-muted mb-1 text-uppercase">Результат поиска</label>
-                                <div class="custom-select-trigger p-2" style="min-height: 54px;" @onclick="() => ToggleDropdown(ref isItemDropdownOpen)" @onclick:stopPropagation>
-                                    @if (selectedItemPreview != null)
-                                    {
-                                        <div class="d-flex align-items-center gap-3">
-                                            <img src="@selectedItemPreview.ImageUrl" class="item-thumb-lg" referrerpolicy="no-referrer" />
-                                            <div class="lh-sm">
-                                                <div class="d-flex align-items-center gap-1">
-                                                    @if (selectedItemPreview.IsStatTrack)
-                                                    {
-                                                        <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.6em">ST</span>
-                                                    }
-                                                    @if (selectedItemPreview.IsPattern)
-                                                    {
-                                                        <span class="badge bg-info text-white py-0 px-1" style="font-size:0.6em">P</span>
-                                                    }
-                                                    <span class="fw-bold text-dark">@selectedItemPreview.Name</span>
-                                                </div>
-                                                <div class="small @GetDisplayColorClass(selectedItemPreview)">@selectedItemPreview.SkinName</div>
-                                            </div>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted fst-italic ms-2">-- Выберите скин --</span>
-                                    }
-                                    <i class="bi bi-chevron-down small text-muted me-2"></i>
-                                </div>
-
-                                <div class="custom-dropdown-menu @(isItemDropdownOpen ? "show" : "")">
-                                    @foreach (var item in filteredItems.Take(50))
-                                    {
-                                        <div class="dropdown-item-custom border-bottom" @onclick="() => SelectItem(item)">
-                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                            {
-                                                <img src="@item.ImageUrl" class="rounded" style="width:36px;height:36px;object-fit:contain;" referrerpolicy="no-referrer" />
-                                            }
-                                            <div>
-                                                <div class="d-flex align-items-center gap-1">
-                                                    @if (item.IsStatTrack)
-                                                    {
-                                                        <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.5em">ST</span>
-                                                    }
-                                                    @if (item.IsPattern)
-                                                    {
-                                                        <span class="badge bg-info text-white py-0 px-1" style="font-size:0.5em">P</span>
-                                                    }
-                                                    <span class="fw-bold text-dark">@item.Name</span>
-                                                </div>
-                                                <div class="small @GetDisplayColorClass(item)">@item.SkinName</div>
-                                            </div>
-                                        </div>
-                                    }
-                                    @if (!filteredItems.Any())
-                                    {
-                                        <div class="p-3 text-center text-muted small">Ничего не найдено</div>
-                                    }
-                                </div>
-                            </div>
-
-                            <div class="bg-light p-3 rounded-4 mb-4 border">
-                                <div class="btn-group w-100 mb-3 bg-white shadow-sm rounded-2 p-1">
-                                    <input type="radio" class="btn-check" name="priceMode" id="modeUnit" checked="@(isUnitPriceMode)" @onchange="@(() => SetPriceMode(true))">
-                                    <label class="btn btn-sm fw-bold @(isUnitPriceMode ? "btn-primary" : "btn-light text-muted")" for="modeUnit">За 1 шт.</label>
-
-                                    <input type="radio" class="btn-check" name="priceMode" id="modeTotal" checked="@(!isUnitPriceMode)" @onchange="@(() => SetPriceMode(false))">
-                                    <label class="btn btn-sm fw-bold @(!isUnitPriceMode ? "btn-primary" : "btn-light text-muted")" for="modeTotal">Общая сумма</label>
-                                </div>
-
-                                <div class="row g-2">
-                                    <div class="col-4">
-                                        <label class="small fw-bold text-muted">Кол-во</label>
-                                        <InputNumber @bind-Value="inputQuantity" class="form-control fw-bold text-center" @bind-Value:after="RecalculatePrice" min="1" />
-                                    </div>
-                                    <div class="col-8">
-                                        @if (isUnitPriceMode)
-                                        {
-                                            <label class="small fw-bold text-muted">Цена за шт (G)</label>
-                                            <div class="input-group">
-                                                <InputNumber @bind-Value="inputPricePerUnit" class="form-control fw-bold" step="0.01" @bind-Value:after="RecalculatePrice" />
-                                                <span class="input-group-text bg-white text-gold fw-bold">G</span>
-                                            </div>
-                                            <div class="text-end mt-1 text-muted small">
-                                                Итого: <strong class="text-dark">@((inputQuantity * inputPricePerUnit).ToString("N2")) G</strong>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <label class="small fw-bold text-muted">Всего потрачено (G)</label>
-                                            <div class="input-group">
-                                                <InputNumber @bind-Value="inputTotalSpent" class="form-control fw-bold" step="0.01" @bind-Value:after="RecalculatePrice" />
-                                                <span class="input-group-text bg-white text-gold fw-bold">G</span>
-                                            </div>
-                                            <div class="text-end mt-1 text-muted small">
-                                                ~ <strong class="text-dark">@((inputQuantity > 0 ? inputTotalSpent / inputQuantity : 0).ToString("N2")) G</strong> / шт.
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" class="btn btn-success w-100 py-2 rounded-3 fw-bold shadow-sm" disabled="@(newItem.ItemBaseId == 0)">
-                                <i class="bi bi-check-lg me-2"></i>Добавить в портфель
-                            </button>
-                        </EditForm>
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-label">Текущая стоимость</div>
+                    <div class="stats-value">@GetTotalPortfolioValue().ToString("N2") <span class="text-gold fs-5">G</span></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-label">Вложено средств</div>
+                    <div class="stats-value text-muted">@GetTotalInvested().ToString("N2") <span class="fs-5 text-secondary">G</span></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-label">Прибыль</div>
+                    @{
+                        var profit = GetTotalPortfolioValue() - GetTotalInvested();
+                        var profitClass = profit >= 0 ? "text-success" : "text-danger";
+                        var profitSign = profit >= 0 ? "+" : "";
+                    }
+                    <div class="stats-value @profitClass">@profitSign@profit.ToString("N2") <span class="fs-5">G</span></div>
+                    <div class="stats-sub @profitClass">
+                        @if (GetTotalInvested() > 0)
+                        {
+                            <span>@profitSign@(((profit / GetTotalInvested()) * 100).ToString("N2"))%</span>
+                        }
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="col-lg-8 h-100">
+        <div class="row g-4 h-100">
+            <div class="col-lg-12">
                 <div class="modern-card h-100">
                     <div class="card-header-clean">
                         <h6 class="m-0 fw-bold text-dark"><i class="bi bi-list-ul me-2 text-primary"></i>Список активов</h6>
@@ -788,9 +656,12 @@
                             {
                                 <span class="badge bg-warning text-dark"><i class="bi bi-lock-fill me-1"></i>Premium Only</span>
                             }
-                            <button class="btn btn-sm btn-light border shadow-sm text-primary fw-bold @(isUpdatingPrices ? "spin-icon" : "")"
+                            <button class="btn btn-sm btn-light border shadow-sm text-primary fw-bold me-2"
                                     @onclick="UpdateAllPortfolioPrices" disabled="@(!CanUpdatePrices() || isUpdatingPrices)" title="@(!CanUpdatePrices() ? "Доступно только в Premium" : "Обновить цены")">
-                                <i class="bi bi-arrow-clockwise me-1"></i>Обновить цены
+                                <i class="bi bi-arrow-clockwise me-1 @(isUpdatingPrices ? "spin-icon" : "")"></i>Обновить цены
+                            </button>
+                            <button class="btn btn-sm btn-success shadow-sm fw-bold" @onclick="OpenAddItemModal" title="Добавить новый предмет">
+                                <i class="bi bi-plus-circle me-1"></i>Добавить актив
                             </button>
                         </div>
                     </div>
@@ -801,23 +672,28 @@
                             <input type="text" class="form-control border-start-0" placeholder="Поиск..." @bind="tableFilterName" @bind:event="oninput" style="width: 120px;" />
                         </div>
 
-                        <select class="form-select form-select-sm w-auto" @bind="tableFilterType">
-                            <option value="">Все типы</option>
-                            @foreach (var t in Enum.GetValues(typeof(ItemType)))
-                            {
-                                <option value="@t">@t</option>
-                            }
-                        </select>
+                        <div class="custom-dropdown-container">
+                            <button class="btn btn-sm btn-white border dropdown-toggle" @onclick="() => ToggleDropdown(ref isTableTypeOpen)" @onclick:stopPropagation>
+                                @(tableFilterType.HasValue? tableFilterType.Value.ToString() : "Все типы")
+                            </button>
+                            <div class="custom-dropdown-menu @(isTableTypeOpen ? "show" : "")">
+                                <div class="dropdown-item-custom" @onclick="() => SetTableType(null)">Все типы</div>
+                                @foreach (var t in Enum.GetValues(typeof(ItemType)))
+                                {
+                                    <div class="dropdown-item-custom" @onclick="() => SetTableType((ItemType)t)">@t</div>
+                                }
+                            </div>
+                        </div>
 
                         <div class="custom-dropdown-container">
                             <button class="btn btn-sm btn-white border dropdown-toggle" @onclick="() => ToggleDropdown(ref isTableRarityOpen)" @onclick:stopPropagation>
                                 @(tableFilterRarity?.ToString() ?? "Редкость")
                             </button>
                             <div class="custom-dropdown-menu @(isTableRarityOpen ? "show" : "")">
-                                <div class="dropdown-item-custom" @onclick="()=>SetTableRarity(null)">Все</div>
+                                <div class="dropdown-item-custom" @onclick="() => SetTableRarity(null)">Все</div>
                                 @foreach (var r in Enum.GetValues(typeof(ItemRarity)).Cast<ItemRarity>())
                                 {
-                                    <div class="dropdown-item-custom" @onclick="()=>SetTableRarity(r)">
+                                    <div class="dropdown-item-custom" @onclick="() => SetTableRarity(r)">
                                         <span class="rarity-dot @GetRarityBgClass(r)"></span> @r
                                     </div>
                                 }
@@ -829,10 +705,10 @@
                                 Коллекция
                             </button>
                             <div class="custom-dropdown-menu @(isTableCollectionOpen ? "show" : "")" style="min-width: 200px;">
-                                <div class="dropdown-item-custom" @onclick="()=>SetTableCollection(0)">Все коллекции</div>
+                                <div class="dropdown-item-custom" @onclick="() => SetTableCollection(0)">Все коллекции</div>
                                 @foreach (var c in collections)
                                 {
-                                    <div class="dropdown-item-custom" @onclick="()=>SetTableCollection(c.Id)">
+                                    <div class="dropdown-item-custom" @onclick="() => SetTableCollection(c.Id)">
                                         @if (!string.IsNullOrEmpty(c.ImageUrl))
                                         {
                                             <img src="@c.ImageUrl" class="col-thumb" referrerpolicy="no-referrer" />
@@ -866,9 +742,18 @@
                                     var totalQty = group.Sum(x => x.Quantity);
                                     var totalInvested = group.Sum(x => x.PurchasePrice * x.Quantity);
                                     var avgBuy = totalQty > 0 ? totalInvested / totalQty : 0;
+
+                                    // ИСПРАВЛЕНО: Теперь учитываем количество для каждого элемента
                                     var totalGroupValue = group.Sum(x => CalculateItemTotalValue(x));
+
                                     var isExpanded = expandedGroups.Contains(itemBase.Id);
                                     var rarityClass = $"row-{itemBase.Rarity.ToString().ToLower()}";
+
+                                    // Расчет процента и цвета
+                                    var diff = totalGroupValue - totalInvested;
+                                    var percent = totalInvested > 0 ? (diff / totalInvested) * 100 : 0;
+                                    var colorClass = diff >= 0 ? "text-success" : "text-danger";
+                                    var percentSign = diff >= 0 ? "+" : "";
 
                                     <tr class="inventory-row @rarityClass row-rarity-border" @onclick="() => ToggleGroup(itemBase.Id)" style="cursor: pointer;">
                                         <td class="text-center">
@@ -886,7 +771,7 @@
                                                     }
                                                     @if (itemBase.IsPattern)
                                                     {
-                                                        <span class="badge bg-info text-white py-0 px-1" style="font-size:0.6em">P</span>
+                                                        <img src="icons/pattern-icon.png" style="width: 14px; height: 14px; object-fit: contain;" title="Pattern" />
                                                     }
                                                     <span class="fw-bold text-dark">@itemBase.Name</span>
                                                 </div>
@@ -896,7 +781,11 @@
                                         <td class="text-center"><span class="badge bg-light text-dark border">x @totalQty</span></td>
                                         <td class="text-end text-muted">@avgBuy.ToString("N2")</td>
                                         <td class="text-end">
-                                            <div class="fw-bold text-success">@totalGroupValue.ToString("N2") <span class="text-gold small">G</span></div>
+                                            <div class="fw-bold text-dark">@totalGroupValue.ToString("N2") <span class="text-gold small">G</span></div>
+                                            @if (totalInvested > 0)
+                                            {
+                                                <div class="small @colorClass fw-bold">@percentSign@percent.ToString("N1")%</div>
+                                            }
                                         </td>
                                     </tr>
 
@@ -911,7 +800,7 @@
                                                             <tr>
                                                                 <th>Дата / Модификации</th>
                                                                 <th>Кол-во</th>
-                                                                <th>Цена</th>
+                                                                <th>Цена закупки</th>
                                                                 <th class="text-end">Действия</th>
                                                             </tr>
                                                         </thead>
@@ -944,7 +833,6 @@
                                                                                 @if (charm?.Sticker != null)
                                                                                 {
                                                                                     <div class="vr mx-1"></div>
-
                                                                                     <img src="@charm.Sticker.ImageUrl" class="mini-sticker" style="border-color:gold;" referrerpolicy="no-referrer" />
                                                                                 }
                                                                             </div>
@@ -997,6 +885,226 @@
     }
 </div>
 
+@if (isAddingItem && currentPortfolioId > 0)
+{
+    <div class="modal-overlay" @onclick="CloseAddItemModal">
+        <div class="craft-modal animate__animated animate__zoomIn" @onclick:stopPropagation="true" style="width: 600px;">
+            <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="m-0 fw-bold text-dark"><i class="bi bi-plus-circle me-2 text-success"></i>Добавить новый актив</h5>
+                <button type="button" class="btn-close" @onclick="CloseAddItemModal"></button>
+            </div>
+
+            <div class="p-4 bg-white" style="max-height: 70vh; overflow-y: auto;">
+                <EditForm Model="@newItem" OnValidSubmit="HandleBuyModal">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted mb-2 text-uppercase">Поиск предмета</label>
+                        <div class="input-group mb-3 shadow-sm">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control border-start-0" placeholder="Название (напр. AKR...)" @bind="searchName" @bind:event="oninput" @onkeyup="FilterItems" />
+                        </div>
+
+                        <div class="d-flex gap-2 mb-3">
+                            <div class="custom-dropdown-container w-50">
+                                <div class="custom-select-trigger" @onclick="() => ToggleDropdown(ref isTypeFilterOpen)" @onclick:stopPropagation>
+                                    <span>@(string.IsNullOrEmpty(selectedTypeString) ? "Все типы" : selectedTypeString)</span>
+                                    <i class="bi bi-chevron-down small text-muted"></i>
+                                </div>
+                                <div class="custom-dropdown-menu @(isTypeFilterOpen ? "show" : "")">
+                                    <div class="dropdown-item-custom" @onclick='() => SelectTypeFilter("")'>Все типы</div>
+                                    @foreach (var t in Enum.GetValues(typeof(ItemType)))
+                                    {
+                                        <div class="dropdown-item-custom" @onclick="() => SelectTypeFilter(t.ToString())">@t</div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="custom-dropdown-container w-50">
+                                <div class="custom-select-trigger" @onclick="() => ToggleDropdown(ref isRarityFilterOpen)" @onclick:stopPropagation>
+                                    @if (string.IsNullOrEmpty(selectedRarity))
+                                    {
+                                        <span>Редкость</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold @GetRarityClass(Enum.Parse<ItemRarity>(selectedRarity))">@selectedRarity</span>
+                                    }
+                                    <i class="bi bi-chevron-down small text-muted"></i>
+                                </div>
+                                <div class="custom-dropdown-menu @(isRarityFilterOpen ? "show" : "")">
+                                    <div class="dropdown-item-custom" @onclick='() => SelectRarityFilter("")'>Любая</div>
+                                    @foreach (var r in Enum.GetValues(typeof(ItemRarity)).Cast<ItemRarity>())
+                                    {
+                                        <div class="dropdown-item-custom" @onclick="() => SelectRarityFilter(r.ToString())">
+                                            <span class="rarity-dot @GetRarityBgClass(r)"></span> @r
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 custom-dropdown-container">
+                            <div class="custom-select-trigger" @onclick="() => ToggleDropdown(ref isAddCollectionOpen)" @onclick:stopPropagation>
+                                @if (selectedCollectionId == 0)
+                                {
+                                    <span>Любая коллекция</span>
+                                }
+                                else
+                                {
+                                    var c = collections.FirstOrDefault(x => x.Id == selectedCollectionId);
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (!string.IsNullOrEmpty(c?.ImageUrl))
+                                        {
+                                            <img src="@c.ImageUrl" class="col-thumb" referrerpolicy="no-referrer" />
+                                        }
+                                        <span class="fw-bold text-truncate">@c?.Name</span>
+                                    </div>
+                                }
+                                <i class="bi bi-chevron-down small text-muted"></i>
+                            </div>
+                            <div class="custom-dropdown-menu @(isAddCollectionOpen ? "show" : "")">
+                                <div class="dropdown-item-custom" @onclick="() => SelectAddCollection(0)">Любая коллекция</div>
+                                @foreach (var c in collections)
+                                {
+                                    <div class="dropdown-item-custom" @onclick="() => SelectAddCollection(c.Id)">
+                                        @if (!string.IsNullOrEmpty(c.ImageUrl))
+                                        {
+                                            <img src="@c.ImageUrl" class="col-thumb" referrerpolicy="no-referrer" />
+                                        }
+                                        <span>@c.Name</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mb-3">
+                            <div class="filter-btn @(isStatTrackFilter ? "active-st" : "")" @onclick="ToggleST">
+                                <i class="bi @(isStatTrackFilter ? "bi-check-circle-fill" : "bi-circle")"></i> StatTrack™
+                            </div>
+                            <div class="filter-btn @(isPatternFilter ? "active-pat" : "")" @onclick="TogglePT">
+                                <i class="bi @(isPatternFilter ? "bi-check-circle-fill" : "bi-circle")"></i> Pattern
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="text-muted opacity-25 my-3" />
+
+                    <div class="mb-3 custom-dropdown-container">
+                        <label class="small fw-bold text-muted mb-2 text-uppercase">Выбранный предмет</label>
+                        <div class="custom-select-trigger p-2" style="min-height: 54px;" @onclick="() => ToggleDropdown(ref isItemDropdownOpen)" @onclick:stopPropagation>
+                            @if (selectedItemPreview != null)
+                            {
+                                <div class="d-flex align-items-center gap-3">
+                                    <img src="@selectedItemPreview.ImageUrl" class="item-thumb-lg" referrerpolicy="no-referrer" />
+                                    <div class="lh-sm">
+                                        <div class="d-flex align-items-center gap-1">
+                                            @if (selectedItemPreview.IsStatTrack)
+                                            {
+                                                <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.6em">ST</span>
+                                            }
+                                            @if (selectedItemPreview.IsPattern)
+                                            {
+                                                <img src="icons/pattern-icon.png" style="width: 14px; height: 14px; object-fit: contain;" title="Pattern" />
+                                            }
+                                            <span class="fw-bold text-dark">@selectedItemPreview.Name</span>
+                                        </div>
+                                        <div class="small @GetDisplayColorClass(selectedItemPreview)">@selectedItemPreview.SkinName</div>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted fst-italic ms-2">-- Выберите скин --</span>
+                            }
+                            <i class="bi bi-chevron-down small text-muted me-2"></i>
+                        </div>
+
+                        <div class="custom-dropdown-menu @(isItemDropdownOpen ? "show" : "")">
+                            @foreach (var item in filteredItems.Take(50))
+                            {
+                                <div class="dropdown-item-custom border-bottom" @onclick="() => SelectItem(item)">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" class="rounded" style="width:36px;height:36px;object-fit:contain;" referrerpolicy="no-referrer" />
+                                    }
+                                    <div>
+                                        <div class="d-flex align-items-center gap-1">
+                                            @if (item.IsStatTrack)
+                                            {
+                                                <span class="badge bg-warning text-dark py-0 px-1" style="font-size:0.5em">ST</span>
+                                            }
+                                            @if (item.IsPattern)
+                                            {
+                                                <img src="icons/pattern-icon.png" style="width: 12px; height: 12px; object-fit: contain;" title="Pattern" />
+                                            }
+                                            <span class="fw-bold text-dark">@item.Name</span>
+                                        </div>
+                                        <div class="small @GetDisplayColorClass(item)">@item.SkinName</div>
+                                    </div>
+                                </div>
+                            }
+                            @if (!filteredItems.Any())
+                            {
+                                <div class="p-3 text-center text-muted small">Ничего не найдено</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="bg-light p-3 rounded-4 mb-3 border">
+                        <div class="btn-group w-100 mb-3 bg-white shadow-sm rounded-2 p-1">
+                            <input type="radio" class="btn-check" name="priceMode2" id="modeUnit2" checked="@(isUnitPriceMode)" @onchange="@(() => SetPriceMode(true))">
+                            <label class="btn btn-sm fw-bold @(isUnitPriceMode ? "btn-primary" : "btn-light text-muted")" for="modeUnit2">За 1 шт.</label>
+
+                            <input type="radio" class="btn-check" name="priceMode2" id="modeTotal2" checked="@(!isUnitPriceMode)" @onchange="@(() => SetPriceMode(false))">
+                            <label class="btn btn-sm fw-bold @(!isUnitPriceMode ? "btn-primary" : "btn-light text-muted")" for="modeTotal2">Общая сумма</label>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="small fw-bold text-muted">Кол-во</label>
+                                <InputNumber @bind-Value="inputQuantity" class="form-control fw-bold text-center" @bind-Value:after="RecalculatePrice" min="1" />
+                            </div>
+                            <div class="col-8">
+                                @if (isUnitPriceMode)
+                                {
+                                    <label class="small fw-bold text-muted">Цена за шт (G)</label>
+                                    <div class="input-group">
+                                        <InputNumber @bind-Value="inputPricePerUnit" class="form-control fw-bold" step="0.01" @bind-Value:after="RecalculatePrice" />
+                                        <span class="input-group-text bg-white text-gold fw-bold">G</span>
+                                    </div>
+                                    <div class="text-end mt-1 text-muted small">
+                                        Итого: <strong class="text-dark">@((inputQuantity * inputPricePerUnit).ToString("N2")) G</strong>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <label class="small fw-bold text-muted">Всего потрачено (G)</label>
+                                    <div class="input-group">
+                                        <InputNumber @bind-Value="inputTotalSpent" class="form-control fw-bold" step="0.01" @bind-Value:after="RecalculatePrice" />
+                                        <span class="input-group-text bg-white text-gold fw-bold">G</span>
+                                    </div>
+                                    <div class="text-end mt-1 text-muted small">
+                                        ~ <strong class="text-dark">@((inputQuantity > 0 ? inputTotalSpent / inputQuantity : 0).ToString("N2")) G</strong> / шт.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-grow-1 py-2 rounded-3 fw-bold shadow-sm" disabled="@(newItem.ItemBaseId == 0)">
+                            <i class="bi bi-check-lg me-2"></i>Добавить в портфель
+                        </button>
+                        <button type="button" class="btn btn-light py-2 px-4 rounded-3 fw-bold" @onclick="CloseAddItemModal">
+                            <i class="bi bi-x me-2"></i>Отмена
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
 @if (isCustomizing && currentCustomizingItem != null)
 {
     <div class="modal-overlay" @onclick="CloseCustomization">
@@ -1011,6 +1119,10 @@
                     @if (currentCustomizingItem.ItemBase.IsStatTrack)
                     {
                         <span class="badge bg-warning text-dark shadow-sm">StatTrack</span>
+                    }
+                    @if (currentCustomizingItem.ItemBase.IsPattern)
+                    {
+                        <img src="icons/pattern-icon.png" style="width: 20px; height: 20px; object-fit: contain;" title="Pattern" class="shadow-sm" />
                     }
                 </div>
                 @if (!string.IsNullOrEmpty(currentCustomizingItem.ItemBase?.ImageUrl))
@@ -1027,11 +1139,11 @@
                 {
                     var idx = i;
                     var att = currentAttachments.FirstOrDefault(x => x.SlotPosition == idx);
-                    <div class="craft-slot @(activeSlot==idx?"active":"")" @onclick="() => SelectSlot(idx)">
+                    <div class="craft-slot @(activeSlot == idx ? "active" : "")" @onclick="() => SelectSlot(idx)">
                         @if (att?.Sticker != null)
                         {
                             <img src="@att.Sticker.ImageUrl" referrerpolicy="no-referrer" style="width: 90%; height: 90%; object-fit: contain;" />
-                            <div class="remove-attachment" @onclick="()=>RemoveAttachment(idx)" @onclick:stopPropagation="true">×</div>
+                            <div class="remove-attachment" @onclick="() => RemoveAttachment(idx)" @onclick:stopPropagation="true">×</div>
                         }
                         else
                         {
@@ -1043,7 +1155,7 @@
                 @{
                     var cSlot = 5; var ch = currentAttachments.FirstOrDefault(x => x.SlotPosition == cSlot);
                 }
-                <div class="craft-slot @(activeSlot==cSlot?"active":"")" @onclick="()=>SelectSlot(cSlot)" style="border-color: @(ch!=null?"gold":"")">
+                <div class="craft-slot @(activeSlot == cSlot ? "active" : "")" @onclick="() => SelectSlot(cSlot)" style="border-color: @(ch != null ? "gold" : "")">
                     @if (ch?.Sticker != null)
                     {
                         <img src="@ch.Sticker.ImageUrl" referrerpolicy="no-referrer" style="width: 90%; height: 90%; object-fit: contain;" />
@@ -1092,6 +1204,7 @@
 }
 
 @code {
+    // ... (Variables logic remains same as provided previously, adding Total Calc helpers)
     private List<ItemBase> allItems = new();
     private List<ItemBase> filteredItems = new();
     private List<GameCollection> collections = new();
@@ -1100,12 +1213,13 @@
     private SubscriptionType userSubscription = SubscriptionType.None;
 
     // UI States
-    private string sortColumn = "TotalCost";
+    private string sortColumn = "Rarity";
     private bool sortAscending = false;
     private bool isCreatingPortfolio = false;
     private bool isCustomizing = false;
     private bool isUpdatingPrices = false;
-
+    private bool isLoading = true;
+    private bool isAddingItem = false;
     // Dropdown States
     private bool isRarityFilterOpen = false;
     private bool isItemDropdownOpen = false;
@@ -1113,12 +1227,13 @@
     private bool isTableCollectionOpen = false;
     private bool isAddCollectionOpen = false;
     private bool isPortfolioDropdownOpen = false;
+    private bool isTypeFilterOpen = false;
+    private bool isTableTypeOpen = false;
 
     // Filters & Inputs
     private string newPortfolioName = "";
     private string newPortfolioDesc = "";
     private int currentPortfolioId = 0;
-
     // Add Item Inputs
     private InventoryItem newItem = new() { Quantity = 1 };
     private string searchName = "";
@@ -1133,7 +1248,6 @@
     private int inputQuantity = 1;
     private decimal inputTotalSpent;
     private int selectedCollectionId = 0;
-
     // Table Filters
     private string tableFilterName = "";
     private int? tableFilterQtyMin;
@@ -1146,7 +1260,6 @@
     private bool tableFilterST = false;
     private bool tableFilterPT = false;
     private HashSet<int> expandedGroups = new();
-
     // Customization
     private InventoryItem? currentCustomizingItem;
     private List<AppliedAttachment> currentAttachments = new();
@@ -1178,6 +1291,7 @@
                 case "AvgBuy": return sortAscending ? grouped.OrderBy(g => g.Sum(x => x.PurchasePrice * x.Quantity) / (g.Sum(x => x.Quantity) == 0 ? 1 : g.Sum(x => x.Quantity))) : grouped.OrderByDescending(g => g.Sum(x => x.PurchasePrice * x.Quantity) / (g.Sum(x => x.Quantity) == 0 ? 1 : g.Sum(x => x.Quantity)));
                 case "TotalCost": return sortAscending ? grouped.OrderBy(g => g.Sum(x => x.PurchasePrice * x.Quantity)) : grouped.OrderByDescending(g => g.Sum(x => x.PurchasePrice * x.Quantity));
                 case "Value": return sortAscending ? grouped.OrderBy(g => g.Sum(x => CalculateItemTotalValue(x))) : grouped.OrderByDescending(g => g.Sum(x => CalculateItemTotalValue(x)));
+                case "Rarity": return sortAscending ? grouped.OrderBy(g => g.Key.Rarity).ThenBy(g => g.Key.Name) : grouped.OrderByDescending(g => g.Key.Rarity).ThenBy(g => g.Key.Name);
                 default: return grouped;
             }
         }
@@ -1185,30 +1299,77 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadUserSubscription();
-        allItems = await ItemService.GetAllItemsAsync();
-        collections = await ItemService.GetCollectionsAsync();
-        await LoadPortfolios();
-        FilterItems();
+        isLoading = true;
+        try
+        {
+            await LoadUserSubscription();
+            allItems = await ItemService.GetAllItemsAsync();
+            collections = await ItemService.GetCollectionsAsync();
+            await LoadPortfolios();
+            FilterItems();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    // --- Subscription Logic ---
     private async Task LoadUserSubscription()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = await UserManager.GetUserAsync(authState.User);
-        if (user != null)
-        {
-            userSubscription = user.SubType;
-        }
+        if (user != null) { userSubscription = user.SubType; }
     }
 
+    // === Helpers for Totals ===
+    private decimal GetTotalPortfolioValue()
+    {
+        return inventory.Sum(x => CalculateItemTotalValue(x));
+    }
+
+    private decimal GetTotalInvested()
+    {
+        return inventory.Sum(x => x.PurchasePrice * x.Quantity);
+    }
+
+    // === FIXED CALCULATION LOGIC ===
+    private decimal CalculateItemTotalValue(InventoryItem item)
+    {
+        // Цена предмета * Количество + Стоимость наклеек
+        // Наклейки считаются один раз, так как они привязаны к конкретному InventoryItem (ID)
+        // Если InventoryItem имеет Quantity > 1, то обычно это предметы без наклеек (кейсы).
+        // Если это скины, то они обычно добавляются по 1 шт.
+        // Но на всякий случай логика: (Цена * Кол-во) + Крафт
+
+        var baseVal = (item.ItemBase?.CurrentMarketPrice ?? 0) * item.Quantity;
+        var craftVal = CalculateCraftAddedValue(item);
+        return baseVal + craftVal;
+    }
+
+    private decimal CalculateCraftAddedValue(InventoryItem item)
+    {
+        if (item.Attachments == null) return 0;
+        decimal added = 0;
+        foreach (var att in item.Attachments)
+        {
+            if (att.Sticker == null) continue;
+            decimal p = att.Sticker.CurrentMarketPrice;
+            if (att.SlotPosition == 5) added += p; // Брелок 100%
+            else
+            {
+                decimal pct = p < 100 ? 0.2m : (p < 1000 ? 0.1m : 0.05m); // % от наклейки
+                added += p * pct;
+            }
+        }
+        return added;
+    }
+
+    // ... (Rest of CRUD methods: StartCreatePortfolio, SaveNewPortfolio, HandleBuy, etc. - UNCHANGED)
     private int GetMaxPortfolios() => userSubscription switch { SubscriptionType.Premium => 10, SubscriptionType.Lite => 3, _ => 1 };
     private int GetMaxItemsLimit() => userSubscription switch { SubscriptionType.Premium => 1000, SubscriptionType.Lite => 100, _ => 25 };
     private bool CanCustomize() => userSubscription != SubscriptionType.None;
     private bool CanUpdatePrices() => userSubscription == SubscriptionType.Premium;
 
-    // --- Actions ---
     private async Task StartCreatePortfolio()
     {
         if (availablePortfolios.Count >= GetMaxPortfolios())
@@ -1231,11 +1392,33 @@
         }
     }
 
+    private void OpenAddItemModal()
+    {
+        isAddingItem = true;
+        newItem = new InventoryItem { Quantity = 1 };
+        selectedItemPreview = null;
+        inputPricePerUnit = 0;
+        inputTotalSpent = 0;
+        inputQuantity = 1;
+        isUnitPriceMode = true;
+    }
+
+    private void CloseAddItemModal()
+    {
+        isAddingItem = false;
+        newItem = new InventoryItem { Quantity = 1 };
+        selectedItemPreview = null;
+    }
+
+    private async Task HandleBuyModal()
+    {
+        await HandleBuy();
+        CloseAddItemModal();
+    }
+
     private async Task HandleBuy()
     {
         if (newItem.ItemBaseId == 0 || currentPortfolioId == 0) return;
-
-        // Check Item Limit
         if (inventory.Count >= GetMaxItemsLimit())
         {
             ToastService.ShowToast($"Лимит предметов достигнут ({GetMaxItemsLimit()}). Обновите подписку!", ToastLevel.Warning);
@@ -1249,7 +1432,8 @@
         await PortfolioService.AddPurchaseAsync(newItem);
 
         newItem = new InventoryItem { Quantity = 1, ItemBaseId = 0 };
-        selectedItemPreview = null; inputPricePerUnit = 0; inputTotalSpent = 0; inputQuantity = 1;
+        selectedItemPreview = null;
+        inputPricePerUnit = 0; inputTotalSpent = 0; inputQuantity = 1;
         await LoadInventory();
         ToastService.ShowToast("Предмет добавлен!", ToastLevel.Success);
     }
@@ -1280,35 +1464,40 @@
         await ParserService.UpdatePortfolioPricesAsync();
         await LoadInventory();
         isUpdatingPrices = false;
-
-        // Toast via GlobalNotifier or direct service
         GlobalNotifier.NotifyUser(currentPortfolioId.ToString(), "Цены успешно обновлены!", ToastLevel.Success);
         ToastService.ShowToast("Цены обновлены!", ToastLevel.Success);
     }
 
     // UI Helpers
-    private void CloseAllDropdowns() { isRarityFilterOpen = false; isItemDropdownOpen = false; isTableRarityOpen = false; isTableCollectionOpen = false; isAddCollectionOpen = false; isPortfolioDropdownOpen = false; }
+    private void CloseAllDropdowns()
+    {
+        isRarityFilterOpen = false; isItemDropdownOpen = false; isTableRarityOpen = false;
+        isTableCollectionOpen = false; isAddCollectionOpen = false; isPortfolioDropdownOpen = false;
+        isTypeFilterOpen = false; isTableTypeOpen = false;
+    }
+
     private void ToggleDropdown(ref bool flag) { var state = !flag; CloseAllDropdowns(); flag = state; }
     private void ToggleST() { isStatTrackFilter = !isStatTrackFilter; FilterItems(); }
     private void TogglePT() { isPatternFilter = !isPatternFilter; FilterItems(); }
 
-    private async Task LoadPortfolios() { availablePortfolios = await PortfolioService.GetMyAccountsAsync(); if (availablePortfolios.Any()) { currentPortfolioId = availablePortfolios.First().Id; await LoadInventory(); } }
+    private async Task LoadPortfolios() { availablePortfolios = await PortfolioService.GetMyAccountsAsync(); if (availablePortfolios.Any()) { currentPortfolioId = availablePortfolios.First().Id; await LoadInventory(); } StateHasChanged(); }
     private async Task LoadInventory() { inventory = await PortfolioService.GetMyInventoryAsync(currentPortfolioId); StateHasChanged(); }
     private async Task SelectPortfolio(int id) { currentPortfolioId = id; await LoadInventory(); }
     private async Task OnPortfolioChanged() => await LoadInventory();
-
     private string GetPortfolioName(int id) => availablePortfolios.FirstOrDefault(p => p.Id == id)?.Name ?? "Выбрать";
-
     private void Sort(string column) { if (sortColumn == column) sortAscending = !sortAscending; else { sortColumn = column; sortAscending = true; } }
     private string SortIcon(string column) { if (sortColumn != column) return "↕"; return sortAscending ? "▲" : "▼"; }
 
     private void SetTableRarity(ItemRarity? r) { tableFilterRarity = r; isTableRarityOpen = false; }
     private void SetTableCollection(int id) { tableFilterCollection = id; isTableCollectionOpen = false; }
+    private void SetTableType(ItemType? t) { tableFilterType = t; isTableTypeOpen = false; }
 
     private void SetPriceMode(bool isUnit) { isUnitPriceMode = isUnit; RecalculatePrice(); }
     private void RecalculatePrice() { if (inputQuantity <= 0) inputQuantity = 1; if (isUnitPriceMode) inputTotalSpent = inputPricePerUnit * inputQuantity; else inputPricePerUnit = inputQuantity > 0 ? inputTotalSpent / inputQuantity : 0; }
 
     private void SelectItem(ItemBase item) { newItem.ItemBaseId = item.Id; selectedItemPreview = item; inputPricePerUnit = Math.Round(item.CurrentMarketPrice, 2); inputQuantity = 1; isUnitPriceMode = true; RecalculatePrice(); isItemDropdownOpen = false; }
+
+    private void SelectTypeFilter(string typeStr) { selectedTypeString = typeStr; isTypeFilterOpen = false; OnTypeChanged(); }
 
     private void ToggleGroup(int id) { if (expandedGroups.Contains(id)) expandedGroups.Remove(id); else expandedGroups.Add(id); }
     private async Task UpdatePurchaseQty(InventoryItem item, object? value) { if (int.TryParse(value?.ToString(), out int qty) && qty > 0) { item.Quantity = qty; await PortfolioService.UpdatePurchaseAsync(item); await LoadInventory(); } }
@@ -1320,21 +1509,32 @@
     private void SelectRarityFilter(string r) { selectedRarity = r; isRarityFilterOpen = false; FilterItems(); }
     private void SelectAddCollection(int id) { selectedCollectionId = id; isAddCollectionOpen = false; FilterItems(); }
 
-    private void FilterItems() { var q = allItems.AsEnumerable(); if (!string.IsNullOrWhiteSpace(searchName)) q = q.Where(i => (i.Name + i.SkinName).Contains(searchName, StringComparison.OrdinalIgnoreCase)); if (!string.IsNullOrEmpty(selectedTypeString) && Enum.TryParse<ItemType>(selectedTypeString, out var t)) q = q.Where(i => i.Type == t); if (!string.IsNullOrEmpty(selectedKindString) && Enum.TryParse<ItemKind>(selectedKindString, out var k)) q = q.Where(i => i.Kind == k); if (!string.IsNullOrEmpty(selectedRarity)) q = q.Where(i => i.Rarity.ToString() == selectedRarity); if (selectedCollectionId > 0) q = q.Where(i => i.CollectionId == selectedCollectionId); if (isStatTrackFilter) q = q.Where(i => i.IsStatTrack); if (isPatternFilter) q = q.Where(i => i.IsPattern); filteredItems = q.OrderBy(i => i.Name).Take(50).ToList(); }
+    private void FilterItems()
+    {
+        var q = allItems.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(searchName)) q = q.Where(i => (i.Name + i.SkinName).Contains(searchName, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(selectedTypeString) && Enum.TryParse<ItemType>(selectedTypeString, out var t)) q = q.Where(i => i.Type == t);
+        if (!string.IsNullOrEmpty(selectedKindString) && Enum.TryParse<ItemKind>(selectedKindString, out var k)) q = q.Where(i => i.Kind == k);
+        if (!string.IsNullOrEmpty(selectedRarity)) q = q.Where(i => i.Rarity.ToString() == selectedRarity); if (selectedCollectionId > 0) q = q.Where(i => i.CollectionId == selectedCollectionId);
+        if (isStatTrackFilter) q = q.Where(i => i.IsStatTrack); if (isPatternFilter) q = q.Where(i => i.IsPattern); filteredItems = q.OrderBy(i => i.Name).Take(50).ToList();
+    }
 
     private void CloseCustomization() { isCustomizing = false; currentCustomizingItem = null; }
     private void SelectSlot(int index) { activeSlot = index; }
     private void RemoveAttachment(int index) { var ex = currentAttachments.FirstOrDefault(x => x.SlotPosition == index); if (ex != null) currentAttachments.Remove(ex); }
 
-    private IEnumerable<ItemBase> GetAvailableAttachments() { if (activeSlot == -1) return Enumerable.Empty<ItemBase>(); var q = allItems.AsEnumerable(); if (activeSlot == 5) q = q.Where(x => x.Type == ItemType.Charm); else q = q.Where(x => x.Type == ItemType.Sticker); if (!string.IsNullOrWhiteSpace(attachmentSearch)) q = q.Where(x => x.Name.Contains(attachmentSearch, StringComparison.OrdinalIgnoreCase) || x.SkinName.Contains(attachmentSearch, StringComparison.OrdinalIgnoreCase)); return q.Take(20); }
+    private IEnumerable<ItemBase> GetAvailableAttachments()
+    {
+        if (activeSlot == -1) return Enumerable.Empty<ItemBase>();
+        var q = allItems.AsEnumerable(); if (activeSlot == 5) q = q.Where(x => x.Type == ItemType.Charm); else q = q.Where(x => x.Type == ItemType.Sticker); if (!string.IsNullOrWhiteSpace(attachmentSearch)) q = q.Where(x => x.Name.Contains(attachmentSearch, StringComparison.OrdinalIgnoreCase) || x.SkinName.Contains(attachmentSearch, StringComparison.OrdinalIgnoreCase));
+        return q.Take(20);
+    }
     private void ApplyAttachment(ItemBase item) { RemoveAttachment(activeSlot); currentAttachments.Add(new AppliedAttachment { StickerId = item.Id, Sticker = item, SlotPosition = activeSlot, InventoryItemId = currentCustomizingItem!.Id }); if (activeSlot >= 1 && activeSlot < 4) activeSlot++; }
     private async Task SaveCustomization() { if (currentCustomizingItem == null) return; await PortfolioService.SaveAttachmentsAsync(currentCustomizingItem.Id, currentAttachments); isCustomizing = false; await LoadInventory(); ToastService.ShowToast("Крафт сохранен!", ToastLevel.Success); }
     private async Task DetachCharm() { var ch = currentAttachments.FirstOrDefault(x => x.SlotPosition == 5); if (ch == null || currentCustomizingItem == null) return; await PortfolioService.AddPurchaseAsync(new InventoryItem { ItemBaseId = ch.StickerId, PortfolioAccountId = currentCustomizingItem.PortfolioAccountId, PurchasePrice = 0, Quantity = 1, PurchaseDate = DateTime.Now }); currentAttachments.Remove(ch); await SaveCustomization(); ToastService.ShowToast("Брелок снят в инвентарь", ToastLevel.Info); }
     private void DeleteCharm() { var ch = currentAttachments.FirstOrDefault(x => x.SlotPosition == 5); if (ch != null) currentAttachments.Remove(ch); }
 
-    private decimal CalculateCraftAddedValue(InventoryItem item) { if (item.Attachments == null) return 0; decimal added = 0; foreach (var att in item.Attachments) { if (att.Sticker == null) continue; decimal p = att.Sticker.CurrentMarketPrice; if (att.SlotPosition == 5) added += p; else { decimal pct = p < 100 ? 0.2m : (p < 1000 ? 0.1m : 0.05m); added += p * pct; } } return added; }
     private decimal CalculateCurrentCraftValue() => CalculateCraftAddedValue(new InventoryItem { Attachments = currentAttachments });
-    private decimal CalculateItemTotalValue(InventoryItem item) => (item.ItemBase?.CurrentMarketPrice ?? 0) + CalculateCraftAddedValue(item);
 
     private string GetDisplayColorClass(ItemBase item) { if (item.Type == ItemType.Container && (item.Kind == ItemKind.Case || item.Kind == ItemKind.StickerPack || item.Kind == ItemKind.CharmPack || item.Kind == ItemKind.GraffitiPack)) return "text-nameless"; return GetRarityClass(item.Rarity); }
     private string GetRarityClass(ItemRarity r) => r switch { ItemRarity.Common => "text-common", ItemRarity.Uncommon => "text-uncommon", ItemRarity.Rare => "text-rare", ItemRarity.Epic => "text-epic", ItemRarity.Legendary => "text-legendary", ItemRarity.Arcane => "text-arcane", ItemRarity.Nameless => "text-nameless", _ => "text-dark" };

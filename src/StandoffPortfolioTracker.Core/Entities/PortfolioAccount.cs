@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.ComponentModel.DataAnnotations;
 
 namespace StandoffPortfolioTracker.Core.Entities
 {
@@ -18,6 +19,8 @@ namespace StandoffPortfolioTracker.Core.Entities
 
         // Чей это портфель?
         public string UserId { get; set; } = string.Empty;
+        [ForeignKey("UserId")]
+        public virtual ApplicationUser? User { get; set; }
 
         public List<InventoryItem> Items { get; set; } = new();
     }

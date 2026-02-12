@@ -27,6 +27,9 @@ namespace StandoffPortfolioTracker.Infrastructure
         public DbSet<InventoryItem> InventoryItems { get; set; }
         public DbSet<AppliedAttachment> AppliedAttachments { get; set; }
 
+        // === Таблицы новостей ===
+        public DbSet<NewsPost> NewsPosts { get; set; }
+        public DbSet<NewsBlock> NewsBlocks { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // 👇 3. ВАЖНО: Этот вызов обязателен для настройки таблиц Identity (Users, Roles и т.д.)

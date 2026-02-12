@@ -1,111 +1,379 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@using StandoffPortfolioTracker.Core.Entities
-@using StandoffPortfolioTracker.Core.Enums
 @using StandoffPortfolioTracker.AdminPanel.Services
-@using Microsoft.EntityFrameworkCore
-@using System.Security.Claims
-@attribute [Authorize]
-@inject PortfolioService PortfolioService
 @inject AuthenticationStateProvider AuthStateProvider
-@inject IDbContextFactory<StandoffPortfolioTracker.Infrastructure.AppDbContext> DbFactory
-@rendermode InteractiveServer
+@inject NavigationManager NavManager
+@inject ItemService ItemService
+@inject IJSRuntime JS
 
-<PageTitle>Дашборд | Standoff Tracker</PageTitle>
+<PageTitle>Standoff Tracker — Профессиональная аналитика</PageTitle>
+
+<div class="landing-wrapper">
+
+    <header class="hero-section position-relative overflow-hidden">
+        <div class="container position-relative z-2">
+            <div class="row align-items-center min-vh-75 py-5 justify-content-center">
+
+                <div class="col-xl-5 col-lg-6 text-center text-lg-start mb-5 mb-lg-0 hero-text-anim">
+                    <div class="d-inline-block border border-primary border-opacity-25 bg-white text-primary px-3 py-2 rounded-pill mb-4 fw-bold shadow-sm">
+                        🚀 Версия 2.0 уже доступна
+                    </div>
+                    <h1 class="display-3 fw-bolder text-dark mb-4 lh-sm">
+                        Управляй инвентарем <br />
+                        <span class="text-gradient-primary">как профессионал</span>
+                    </h1>
+                    <p class="lead text-secondary mb-5 pe-lg-5 fw-medium">
+                        Единственный инструмент, который нужен трейдеру. Отслеживай ROI, анализируй историю цен и находи самые выгодные скины за секунды.
+                    </p>
+
+                    <div class="d-flex gap-3 justify-content-center justify-content-lg-start">
+                        <AuthorizeView>
+                            <Authorized>
+                                <a href="dashboard" class="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold shadow-lg hover-up transition-all">
+                                    <i class="bi bi-speedometer2 me-2"></i> Открыть Дашборд
+                                </a>
+                            </Authorized>
+                            <NotAuthorized>
+                                <a href="Identity/Account/Register" class="btn btn-primary btn-lg rounded-pill px-5 py-3 fw-bold shadow-lg hover-up transition-all">
+                                    Начать бесплатно
+                                </a>
+                                <a href="#features" class="btn btn-white btn-lg rounded-pill px-4 py-3 fw-bold border hover-up transition-all text-dark">
+                                    Узнать больше
+                                </a>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+
+                    <div class="mt-4 pt-3 d-flex align-items-center gap-3 justify-content-center justify-content-lg-start text-secondary small fw-bold">
+                        <div class="d-flex">
+                            <i class="bi bi-star-fill text-gold"></i>
+                            <i class="bi bi-star-fill text-gold"></i>
+                            <i class="bi bi-star-fill text-gold"></i>
+                            <i class="bi bi-star-fill text-gold"></i>
+                            <i class="bi bi-star-fill text-gold"></i>
+                        </div>
+                        <span>Выбор 5,000+ трейдеров</span>
+                    </div>
+                </div>
+
+                <div class="col-xl-6 col-lg-6 hero-img-anim">
+                    <div class="hero-image-container position-relative ms-lg-auto" style="max-width: 600px;">
+                        <div class="absolute-blob blob-1"></div>
+                        <div class="absolute-blob blob-2"></div>
+
+                        <div class="app-mockup shadow-2xl floating-animation bg-white">
+                            <div class="mockup-header">
+                                <div class="dots"><span></span><span></span><span></span></div>
+                                <div class="url-bar">standoff-tracker.com/dashboard</div>
+                            </div>
+                            <div class="mockup-body p-4">
+                                <div class="d-flex justify-content-between mb-4 align-items-end">
+                                    <div>
+                                        <div class="text-secondary small fw-bold text-uppercase ls-1 mb-1">Общая стоимость</div>
+                                        <h3 class="fw-bolder text-dark m-0 display-6">
+                                            @mockupTotalValue.ToString("N0") <span class="text-gold">G</span>
+                                        </h3>
+                                    </div>
+                                    <div class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill fw-bold">
+                                        <i class="bi bi-graph-up-arrow me-1"></i> +12.5%
+                                    </div>
+                                </div>
+
+                                <div class="graph-placeholder rounded-3 overflow-hidden position-relative mb-4" style="height: 180px; background: #f8f9fa;">
+                                    <svg viewBox="0 0 500 150" class="w-100 h-100" preserveAspectRatio="none">
+                                        <path d="M0,120 C100,100 200,140 300,80 S400,20 500,60" stroke="#4e73df" stroke-width="4" fill="none" stroke-linecap="round" />
+                                        <path d="M0,120 C100,100 200,140 300,80 S400,20 500,60 L500,150 L0,150 Z" fill="url(#grad1)" opacity="0.15" />
+                                        <defs>
+                                            <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#4e73df;stop-opacity:1" />
+                                                <stop offset="100%" style="stop-color:#4e73df;stop-opacity:0" />
+                                            </linearGradient>
+                                        </defs>
+                                    </svg>
+                                </div>
+
+                                <div class="d-flex gap-3">
+                                    @if (showcaseItems != null && showcaseItems.Any())
+                                    {
+                                        @foreach (var item in showcaseItems)
+                                        {
+                                            <div class="mini-card flex-grow-1 p-2 rounded-3 border bg-white shadow-sm d-flex align-items-center gap-3">
+                                                <div class="mini-img-box rounded-2 bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                                    <img src="@item.ImageUrl" style="max-width: 90%; max-height: 90%; object-fit: contain;" />
+                                                </div>
+                                                <div style="min-width: 0;">
+                                                    <div class="fw-bold text-dark mb-0 text-truncate" style="font-size: 0.85rem;">@item.SkinName</div>
+                                                    <div class="fw-bolder text-dark small">
+                                                        @item.Price.ToString("N0") <span class="text-gold">G</span>
+                                                    </div>
+                                                    <div class="text-success fw-bold" style="font-size: 0.65rem;">
+                                                        <i class="bi bi-caret-up-fill"></i> +@item.GrowthPercent.ToString("N1")%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="w-100 text-center py-2 text-secondary small">
+                                            <div class="spinner-border spinner-border-sm text-primary mb-1"></div>
+                                            <div>Загрузка рынка...</div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-wave">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none" style="display: block; width: 100%; height: 100%;">
+                <path fill="#1a1d21" fill-opacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+            </svg>
+        </div>
+    </header>
+
+    <section class="stats-section bg-dark text-white py-5 position-relative z-2" style="margin-top: -1px;">
+        <div class="container">
+            <div class="row text-center g-4 justify-content-center">
+                <div class="col-md-3 col-6 border-end border-secondary">
+                    <div class="display-5 fw-bolder mb-1">10k+</div>
+                    <div class="text-white-50 small text-uppercase fw-bold ls-1">Пользователей</div>
+                </div>
+                <div class="col-md-3 col-6 border-end border-secondary">
+                    <div class="display-5 fw-bolder text-gold mb-1">500M</div>
+                    <div class="text-white-50 small text-uppercase fw-bold ls-1">Голды отслежено</div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="display-5 fw-bolder mb-1">24/7</div>
+                    <div class="text-white-50 small text-uppercase fw-bold ls-1">Мониторинг</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features-section py-6 bg-light">
+        <div class="container">
+            <div class="text-center mb-6 mw-800 mx-auto">
+                <h6 class="text-primary fw-bold text-uppercase ls-2 mb-3">Возможности</h6>
+                <h2 class="display-4 fw-bold text-dark mb-4">Всё для успешного трейда</h2>
+                <p class="text-secondary fs-5">Профессиональные инструменты в удобном интерфейсе</p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100 p-4 rounded-4 bg-white border-0 shadow-sm hover-up text-center">
+                        <div class="icon-circle bg-primary bg-opacity-10 text-primary mx-auto mb-4">
+                            <i class="bi bi-wallet2"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-3">Умный Портфель</h4>
+                        <p class="text-secondary">Автоматический подсчет стоимости инвентаря и чистой прибыли.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100 p-4 rounded-4 bg-white border-0 shadow-sm hover-up text-center">
+                        <div class="icon-circle bg-warning bg-opacity-10 text-warning mx-auto mb-4">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-3">Анализ Рынка</h4>
+                        <p class="text-secondary">История цен за 90 дней. Находите идеальные моменты для сделок.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100 p-4 rounded-4 bg-white border-0 shadow-sm hover-up text-center">
+                        <div class="icon-circle bg-success bg-opacity-10 text-success mx-auto mb-4">
+                            <i class="bi bi-funnel"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-3">Фильтры</h4>
+                        <p class="text-secondary">Поиск по коллекциям, типам, паттернам и наклейкам.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100 p-4 rounded-4 bg-white border-0 shadow-sm hover-up text-center">
+                        <div class="icon-circle bg-danger bg-opacity-10 text-danger mx-auto mb-4">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-3">Приватность</h4>
+                        <p class="text-secondary">Скрывайте свой профиль или делитесь им с друзьями.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100 p-4 rounded-4 bg-white border-0 shadow-sm hover-up text-center">
+                        <div class="icon-circle bg-info bg-opacity-10 text-info mx-auto mb-4">
+                            <i class="bi bi-newspaper"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-3">Новости</h4>
+                        <p class="text-secondary">Следите за обновлениями игры и экономики.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="feature-card h-100 p-4 rounded-4 bg-white border-0 shadow-sm hover-up text-center">
+                        <div class="icon-circle bg-dark bg-opacity-10 text-dark mx-auto mb-4">
+                            <i class="bi bi-stars text-gold"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark mb-3">Premium</h4>
+                        <p class="text-secondary">Расширенная аналитика и приоритетная поддержка.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="steps-section py-6 bg-white position-relative">
+        <div class="container position-relative z-2">
+            <div class="text-center mb-6">
+                <h2 class="fw-bold display-5 text-dark mb-3">Путь к профиту</h2>
+                <p class="text-secondary fs-5">Всего 3 простых шага</p>
+            </div>
+
+            <div class="timeline-wrapper">
+                <div class="timeline-line d-none d-lg-block"></div>
+
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="step-item text-center">
+                            <div class="step-icon-wrapper mb-4">
+                                <div class="step-icon bg-white shadow-lg text-primary">
+                                    <i class="bi bi-person-plus-fill"></i>
+                                </div>
+                                <div class="step-badge">1</div>
+                            </div>
+                            <h4 class="fw-bold text-dark mb-3">Регистрация</h4>
+                            <p class="text-secondary px-4">Создайте аккаунт за 30 секунд.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="step-item text-center">
+                            <div class="step-icon-wrapper mb-4">
+                                <div class="step-icon bg-white shadow-lg text-warning">
+                                    <i class="bi bi-bag-plus-fill"></i>
+                                </div>
+                                <div class="step-badge">2</div>
+                            </div>
+                            <h4 class="fw-bold text-dark mb-3">Добавление Скинов</h4>
+                            <p class="text-secondary px-4">Занесите свой инвентарь в портфель.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="step-item text-center">
+                            <div class="step-icon-wrapper mb-4">
+                                <div class="step-icon bg-white shadow-lg text-success">
+                                    <i class="bi bi-graph-up-arrow"></i>
+                                </div>
+                                <div class="step-badge">3</div>
+                            </div>
+                            <h4 class="fw-bold text-dark mb-3">Профит</h4>
+                            <p class="text-secondary px-4">Следите за ростом цен и продавайте.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section py-6 bg-light">
+        <div class="container">
+            <div class="cta-box cta-box-glow rounded-5 p-5 text-center position-relative overflow-hidden shadow-lg">
+                <div class="position-relative z-2 py-4">
+                    <h2 class="display-4 fw-bold text-white mb-4">Готовы начать зарабатывать?</h2>
+                    <p class="fs-5 text-white-50 mb-5 mx-auto opacity-75" style="max-width: 600px;">
+                        Присоединяйтесь к тысячам трейдеров, которые уже увеличили свой капитал с помощью Standoff Tracker.
+                    </p>
+
+                    <a href="Identity/Account/Register" class="btn btn-gold-glow btn-lg rounded-pill px-5 py-3 fw-bold text-dark shadow-lg hover-scale">
+                        Создать аккаунт бесплатно
+                    </a>
+                </div>
+
+                <div class="cta-overlay"></div>
+                <div class="particles">
+                    <div class="particle p1"></div><div class="particle p2"></div><div class="particle p3"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-5 bg-white border-top">
+        <div class="container text-center">
+            <div class="mb-4 d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-graph-up-arrow text-warning fs-4"></i>
+                <span class="fw-bold text-dark fs-4">STANDOFF TRACKER</span>
+            </div>
+            <p class="text-secondary mb-0 small">&copy; @DateTime.Now.Year Standoff Tracker. Все права защищены.</p>
+        </div>
+    </footer>
+
+</div>
+
+@code {
+    private List<ItemService.ShowcaseItemDto> showcaseItems = new();
+    private decimal mockupTotalValue = 24500;
+
+    protected override async Task OnInitializedAsync()
+    {
+        showcaseItems = await ItemService.GetDailyShowcaseAsync();
+        if (showcaseItems.Any())
+        {
+            mockupTotalValue = showcaseItems.Sum(x => x.Price) + 15000;
+        }
+    }
+}
 
 <style>
-    body {
-        background-color: #f8f9fc;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    /* === ЦВЕТА === */
+    .text-gold {
+        color: #FFD700 !important;
+        font-weight: 800;
     }
 
-    /* === Header Styles === */
-    .dashboard-header {
-        background: white;
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        margin-bottom: 2rem;
-        border: 1px solid rgba(0,0,0,0.04);
+    .text-dark {
+        color: #1a1d21 !important;
     }
 
-    .date-badge {
-        background: rgba(78, 115, 223, 0.1);
-        color: #4e73df;
-        font-size: 0.8rem;
-        font-weight: 600;
-        padding: 4px 12px;
-        border-radius: 20px;
-        display: inline-block;
-        margin-bottom: 0.5rem;
+    .text-secondary {
+        color: #64748b !important;
     }
 
-    /* === Custom Dropdown === */
-    .custom-dropdown {
-        position: relative;
-        width: 240px;
-        z-index: 100;
+    .bg-dark {
+        background-color: #1a1d21 !important;
     }
 
-    .dropdown-trigger {
-        background: white;
-        border: 1px solid #e3e6f0;
-        border-radius: 12px;
-        padding: 10px 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        transition: all 0.2s;
-        font-weight: 600;
-        color: #2c3e50;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    .text-primary-gradient {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
-        .dropdown-trigger:hover {
-            border-color: #4e73df;
-            box-shadow: 0 4px 10px rgba(78, 115, 223, 0.1);
-        }
-
-    .dropdown-menu-custom {
-        position: absolute;
-        top: 110%;
-        left: 0;
-        width: 100%;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        border: 1px solid #f0f0f0;
-        overflow: hidden;
-        animation: slideDown 0.2s ease-out;
+    .ls-1 {
+        letter-spacing: 1px;
     }
 
-    .dropdown-item-custom {
-        padding: 10px 16px;
-        cursor: pointer;
-        transition: background 0.1s;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .ls-2 {
+        letter-spacing: 2px;
     }
 
-        .dropdown-item-custom:hover {
-            background: #f8f9fc;
-            color: #4e73df;
-        }
+    .py-6 {
+        padding-top: 6rem;
+        padding-bottom: 6rem;
+    }
 
-        .dropdown-item-custom.active {
-            background: rgba(78, 115, 223, 0.05);
-            color: #4e73df;
-            font-weight: 700;
-        }
+    /* === HERO ANIMATIONS (CSS Only) === */
+    .hero-text-anim {
+        animation: fadeInUp 0.8s ease-out forwards;
+    }
 
-    @@keyframes slideDown {
+    .hero-img-anim {
+        animation: fadeInRight 1s ease-out forwards;
+        opacity: 0;
+        animation-delay: 0.3s;
+    }
+
+    @@keyframes fadeInUp {
         from {
             opacity: 0;
-            transform: translateY(-10px);
+            transform: translateY(30px);
         }
 
         to {
@@ -114,571 +382,248 @@
         }
     }
 
-    /* === Stats Cards === */
-    .stat-card {
-        border: none;
-        border-radius: 16px;
-        transition: transform 0.2s, box-shadow 0.2s;
-        background: white;
-        overflow: hidden;
+    @@keyframes fadeInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* === УБРАЛ ВСЮ ЛОГИКУ JS-АНИМАЦИЙ === */
+    /* Теперь блоки просто видны всегда */
+
+    /* === FEATURES === */
+    .icon-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover .icon-circle {
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    .hover-up {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .hover-up:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+        }
+
+    /* === TIMELINE STEPS === */
+    .timeline-wrapper {
         position: relative;
     }
 
-        .stat-card::before {
-            content: '';
+    .timeline-line {
+        position: absolute;
+        top: 40px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-image: linear-gradient(to right, #dee2e6 50%, rgba(255,255,255,0) 0%);
+        background-position: bottom;
+        background-size: 20px 2px;
+        background-repeat: repeat-x;
+        z-index: 0;
+    }
+
+    .step-item {
+        position: relative;
+        z-index: 1;
+    }
+
+    .step-icon-wrapper {
+        display: inline-block;
+        position: relative;
+        background: white;
+        padding: 0 10px;
+    }
+
+    .step-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        border: 1px solid #f1f5f9;
+    }
+
+    .step-badge {
+        position: absolute;
+        top: 0;
+        right: -5px;
+        width: 30px;
+        height: 30px;
+        background: #4e73df;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* === MOCKUP === */
+    .floating-animation {
+        animation: float 6s ease-in-out infinite;
+    }
+
+    @@keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-15px);
+        }
+
+        100% {
+            transform: translateY(0px);
+        }
+    }
+
+    .app-mockup {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .mockup-header {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        border-bottom: 1px solid #eee;
+        border-radius: 16px 16px 0 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .dots span {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ddd;
+        margin-right: 6px;
+    }
+
+        .dots span:nth-child(1) {
+            background: #ff5f57;
+        }
+
+        .dots span:nth-child(2) {
+            background: #febc2e;
+        }
+
+        .dots span:nth-child(3) {
+            background: #28c840;
+        }
+
+    .url-bar {
+        background: #fff;
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-size: 0.75rem;
+        color: #aaa;
+        margin-left: 20px;
+        flex-grow: 1;
+        text-align: center;
+        font-weight: 500;
+        border: 1px solid #eee;
+    }
+
+    /* === CTA BOX & BUTTON === */
+    .cta-box-glow {
+        background-color: #1a1d21;
+        background: radial-gradient(circle at top right, #2c3036 0%, #1a1d21 100%);
+        border: 1px solid rgba(255,255,255,0.05);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        color: white !important;
+    }
+
+    /* Анимированная кнопка */
+    .btn-gold-glow {
+        background: linear-gradient(90deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
+        background-size: 200% auto;
+        border: none;
+        color: #000 !important;
+        position: relative;
+        z-index: 5;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        animation: pulse-shadow 2s infinite;
+    }
+
+        .btn-gold-glow:hover {
+            transform: translateY(-3px);
+            background-position: right center;
+        }
+
+        .btn-gold-glow::after {
+            content: "";
             position: absolute;
             top: 0;
-            left: 0;
-            width: 4px;
+            left: -100%;
+            width: 50%;
             height: 100%;
-            background: #ccc;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+            transform: skewX(-20deg);
+            animation: shine-sweep 3s infinite ease-in-out;
+            pointer-events: none;
         }
 
-        .stat-card.primary::before {
-            background: #4e73df;
+    @@keyframes pulse-shadow {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.6);
         }
 
-        .stat-card.success::before {
-            background: #1cc88a;
+        70% {
+            box-shadow: 0 0 0 15px rgba(255, 215, 0, 0);
         }
 
-        .stat-card.info::before {
-            background: #36b9cc;
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
         }
-
-        .stat-card.warning::before {
-            background: #f6c23e;
-        }
-
-        .stat-card.danger::before {
-            background: #e74a3b;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-        }
-
-    .icon-box {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
     }
 
-    /* === Lists === */
-    .item-row {
-        transition: background 0.2s;
-        border-bottom: 1px solid #f8f9fc;
+    @@keyframes shine-sweep {
+        0% {
+            left: -100%;
+        }
+
+        20% {
+            left: 200%;
+        }
+
+        100% {
+            left: 200%;
+        }
     }
 
-        .item-row:last-child {
-            border-bottom: none;
-        }
-
-        .item-row:hover {
-            background: #fdfdfe;
-        }
-
-    .img-box {
-        width: 48px;
-        height: 48px;
-        background: #fff;
-        border: 1px solid #edf0f2;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px;
+    .cta-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.5;
+        z-index: 1;
     }
 </style>
-
-@if (isLoading)
-{
-    <div class="d-flex flex-column justify-content-center align-items-center" style="height: 70vh;">
-        <div class="spinner-border text-primary mb-3" role="status"></div>
-        <p class="text-muted fw-bold animate-pulse">Анализируем рынок...</p>
-    </div>
-}
-else if (!hasPortfolios)
-{
-    <div class="d-flex justify-content-center align-items-center" style="height: 70vh;">
-        <div class="text-center p-5 bg-white rounded-4 shadow-sm border">
-            <div class="mb-4 display-1 opacity-25">📂</div>
-            <h2 class="fw-bold text-dark">Начнем работу?</h2>
-            <p class="text-muted mb-4">У вас пока нет активных портфелей.</p>
-            <a href="portfolio" class="btn btn-primary btn-lg rounded-pill px-5 shadow fw-bold">
-                <i class="bi bi-plus-lg me-2"></i>Создать портфель
-            </a>
-        </div>
-    </div>
-}
-else
-{
-    <div class="container-fluid py-4" @onclick="CloseDropdown">
-
-        <div class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            <div>
-                <span class="date-badge">
-                    <i class="bi bi-calendar3 me-2"></i>@DateTime.Now.ToString("dd MMMM yyyy")
-                </span>
-                <h1 class="h3 fw-bold text-dark mb-1">
-                    Привет, @userName! 👋
-                </h1>
-                <p class="text-muted small mb-0">Вот сводка по твоим инвестициям на сегодня.</p>
-            </div>
-
-            <div class="d-flex align-items-center gap-3">
-
-                <div class="custom-dropdown" @onclick:stopPropagation>
-                    <div class="dropdown-trigger" @onclick="ToggleDropdown">
-                        <span>
-                            @(selectedPortfolioId == 0 ? "🌍 Все портфели" : $"💼 {GetPortfolioName(selectedPortfolioId)}")
-                        </span>
-                        <i class="bi bi-chevron-down text-muted" style="font-size: 0.8rem; transform: @(isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)"); transition: 0.2s;"></i>
-                    </div>
-
-                    @if (isDropdownOpen)
-                    {
-                        <div class="dropdown-menu-custom">
-                            <div class="dropdown-item-custom @(selectedPortfolioId == 0 ? "active" : "")"
-                                 @onclick="() => SelectPortfolio(0)">
-                                <span class="fs-5">🌍</span> Все портфели
-                            </div>
-                            <div class="dropdown-divider my-0"></div>
-                            @foreach (var p in availablePortfolios)
-                            {
-                                <div class="dropdown-item-custom @(selectedPortfolioId == p.Id ? "active" : "")"
-                                     @onclick="() => SelectPortfolio(p.Id)">
-                                    <span class="fs-5">💼</span> @p.Name
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-
-                <a href="portfolio" class="btn btn-outline-primary rounded-3 px-3 d-flex align-items-center justify-content-center"
-                   style="height: 44px; width: 44px;" title="Управление портфелями">
-                    <i class="bi bi-gear-fill"></i>
-                </a>
-            </div>
-        </div>
-
-        <div class="row g-4 mb-5">
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card primary shadow-sm h-100 p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="text-uppercase text-muted small fw-bold mb-1">Вложено</div>
-                            <div class="h4 mb-0 fw-bold text-dark">@totalInvested.ToString("N0") G</div>
-                        </div>
-                        <div class="icon-box bg-light text-primary">💰</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card info shadow-sm h-100 p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="text-uppercase text-muted small fw-bold mb-1">
-                                Стоимость <i class="bi bi-info-circle ms-1" title="Чистыми (-20%)"></i>
-                            </div>
-                            <div class="h4 mb-0 fw-bold text-dark">@currentValue.ToString("N0") G</div>
-                        </div>
-                        <div class="icon-box bg-light text-info">🏦</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card @(totalProfit >= 0 ? "success" : "danger") shadow-sm h-100 p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="text-uppercase text-muted small fw-bold mb-1">Прибыль</div>
-                            <div class="h4 mb-0 fw-bold @(totalProfit >= 0 ? "text-success" : "text-danger")">
-                                @(totalProfit > 0 ? "+" : "")@totalProfit.ToString("N0") G
-                            </div>
-                        </div>
-                        <div class="icon-box bg-light @(totalProfit >= 0 ? "text-success" : "text-danger")">
-                            📈
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6">
-                <div class="stat-card warning shadow-sm h-100 p-4">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="text-uppercase text-muted small fw-bold mb-1">ROI</div>
-                            <div class="h4 mb-0 fw-bold text-dark">@roi.ToString("N1")%</div>
-                        </div>
-                        <div class="icon-box bg-light text-warning">🚀</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mb-5">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm rounded-4">
-                    <div class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-graph-up text-primary me-2"></i>Динамика портфеля (30 дней)</h6>
-                    </div>
-                    <div class="card-body px-4 pb-4">
-                        @if (chartData.Any())
-                        {
-                            <ApexChart TItem="PortfolioHistoryPoint" Title="" Options="chartOptions" Height="320">
-                                <ApexPointSeries TItem="PortfolioHistoryPoint"
-                                                 Items="chartData"
-                                                 Name="Стоимость"
-                                                 SeriesType="SeriesType.Area"
-                                                 XValue="@(e => e.Date.ToString("dd.MM"))"
-                                                 YValue="@(e => (decimal)e.Value)" />
-                            </ApexChart>
-                        }
-                        else
-                        {
-                            <div class="text-center py-5">
-                                <p class="text-muted">История пока пуста. Загляните завтра!</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-lg-6 mb-4">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-header bg-white border-bottom-0 pt-4 px-4">
-                        <h6 class="m-0 fw-bold text-success"><i class="bi bi-gem me-2"></i>Лидеры роста</h6>
-                    </div>
-                    <div class="card-body px-0 pt-2">
-                        @if (topItems.Any())
-                        {
-                            @foreach (var item in topItems)
-                            {
-                                <div class="item-row px-4 py-3 d-flex justify-content-between align-items-center">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="img-box">
-                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                            {
-                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                                            }
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-dark text-truncate" style="max-width: 140px;">
-                                                @item.Name
-                                            </div>
-                                            <div class="text-muted small d-flex align-items-center gap-2">
-                                                @item.Skin <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2">x@(item.Quantity)</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="text-success fw-bold">+@item.TotalProfit.ToString("N0") G</div>
-                                        <span class="text-success small fw-bold bg-success bg-opacity-10 px-2 py-1 rounded">
-                                            +@item.Roi.ToString("N0")%
-                                        </span>
-                                    </div>
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <p class="text-muted text-center py-4">Нет данных</p>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-6 mb-4">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-header bg-white border-bottom-0 pt-4 px-4">
-                        <h6 class="m-0 fw-bold text-danger"><i class="bi bi-arrow-down-right-circle me-2"></i>Аутсайдеры</h6>
-                    </div>
-                    <div class="card-body px-0 pt-2">
-                        @if (worstItems.Any())
-                        {
-                            @foreach (var item in worstItems)
-                            {
-                                <div class="item-row px-4 py-3 d-flex justify-content-between align-items-center">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="img-box">
-                                            @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                            {
-                                                <img src="@item.ImageUrl" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                                            }
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-dark text-truncate" style="max-width: 140px;">
-                                                @item.Name
-                                            </div>
-                                            <div class="text-muted small d-flex align-items-center gap-2">
-                                                @item.Skin <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2">x@(item.Quantity)</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="text-danger fw-bold">@item.TotalProfit.ToString("N0") G</div>
-                                        <span class="text-danger small fw-bold bg-danger bg-opacity-10 px-2 py-1 rounded">
-                                            @item.Roi.ToString("N0")%
-                                        </span>
-                                    </div>
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <div class="text-center py-5">
-                                <span class="fs-1">🎉</span>
-                                <p class="text-muted mt-2">Убыточных позиций нет!</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@code {
-    private bool isLoading = true;
-    private bool hasPortfolios = false;
-    private int selectedPortfolioId = 0;
-    private string userName = "Трейдер";
-
-    // Dropdown state
-    private bool isDropdownOpen = false;
-
-    private List<PortfolioAccount> availablePortfolios = new();
-    private List<InventoryItem> allInventory = new();
-
-    // Stats
-    private decimal totalInvested;
-    private decimal currentValue;
-    private decimal totalProfit;
-    private decimal roi;
-
-    // View Models
-    class StackedAssetStat
-    {
-        public string Name { get; set; }
-        public string Skin { get; set; }
-        public string ImageUrl { get; set; }
-        public int Quantity { get; set; }
-        public decimal TotalProfit { get; set; }
-        public decimal Roi { get; set; }
-    }
-    private List<StackedAssetStat> topItems = new();
-    private List<StackedAssetStat> worstItems = new();
-
-    // Chart
-    public class PortfolioHistoryPoint { public DateTime Date { get; set; } public decimal Value { get; set; } }
-    private List<PortfolioHistoryPoint> chartData = new();
-    private ApexChartOptions<PortfolioHistoryPoint> chartOptions = new();
-
-    protected override async Task OnInitializedAsync()
-    {
-        SetupChart();
-        await LoadUserName();
-        availablePortfolios = await PortfolioService.GetMyAccountsAsync();
-
-        if (availablePortfolios.Any())
-        {
-            hasPortfolios = true;
-            await ReloadData();
-        }
-        else
-        {
-            isLoading = false;
-        }
-    }
-
-    private async Task LoadUserName()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity?.IsAuthenticated == true)
-        {
-            // Берем имя из клеймов (или "Трейдер", если нет имени)
-            userName = user.Identity.Name ?? "Трейдер";
-
-            // Если у вас в Identity есть DisplayName, лучше использовать его,
-            // но для простоты берем стандартное имя.
-        }
-    }
-
-    // === Логика кастомного Dropdown ===
-    private void ToggleDropdown()
-    {
-        isDropdownOpen = !isDropdownOpen;
-    }
-
-    private void CloseDropdown()
-    {
-        if (isDropdownOpen) isDropdownOpen = false;
-    }
-
-    private async Task SelectPortfolio(int id)
-    {
-        selectedPortfolioId = id;
-        isDropdownOpen = false;
-        await ReloadData();
-    }
-
-    private string GetPortfolioName(int id)
-    {
-        return availablePortfolios.FirstOrDefault(p => p.Id == id)?.Name ?? "Неизвестно";
-    }
-    // ==================================
-
-    private async Task ReloadData()
-    {
-        isLoading = true;
-        allInventory.Clear();
-
-        if (selectedPortfolioId == 0)
-        {
-            foreach (var p in availablePortfolios)
-            {
-                var pItems = await PortfolioService.GetInventoryAsync(p.Id);
-                allInventory.AddRange(pItems);
-            }
-        }
-        else
-        {
-            allInventory = await PortfolioService.GetInventoryAsync(selectedPortfolioId);
-        }
-
-        if (allInventory.Any())
-        {
-            CalculateStats();
-            await LoadChartData();
-        }
-        else
-        {
-            ResetStats();
-        }
-
-        isLoading = false;
-    }
-
-    private void CalculateStats()
-    {
-        totalInvested = allInventory.Sum(i => i.PurchasePrice * i.Quantity);
-        currentValue = allInventory.Sum(i => CalculateItemNetValue(i) * i.Quantity);
-        totalProfit = currentValue - totalInvested;
-
-        if (totalInvested > 0)
-            roi = (totalProfit / totalInvested) * 100;
-        else if (totalProfit > 0)
-            roi = 100;
-        else
-            roi = 0;
-
-        var groupedStats = allInventory
-            .Where(i => i.ItemBase != null)
-            .GroupBy(i => i.ItemBaseId)
-            .Select(g =>
-            {
-                var first = g.First();
-                var qty = g.Sum(x => x.Quantity);
-                var invested = g.Sum(x => x.PurchasePrice * x.Quantity);
-                var currentNet = g.Sum(x => CalculateItemNetValue(x) * x.Quantity);
-                var profit = currentNet - invested;
-                decimal itemRoi = 0;
-                if (invested > 0) itemRoi = (profit / invested) * 100;
-                else if (profit > 0) itemRoi = 100;
-
-                return new StackedAssetStat
-                    {
-                        Name = first.ItemBase.Name,
-                        Skin = first.ItemBase.SkinName,
-                        ImageUrl = first.ItemBase.ImageUrl,
-                        Quantity = qty,
-                        TotalProfit = profit,
-                        Roi = itemRoi
-                    };
-            })
-            .ToList();
-
-        topItems = groupedStats.OrderByDescending(s => s.TotalProfit).Take(3).ToList();
-        worstItems = groupedStats.Where(s => s.TotalProfit < 0).OrderBy(s => s.TotalProfit).Take(3).ToList();
-    }
-
-    private decimal CalculateItemNetValue(InventoryItem item)
-    {
-        var price = item.ItemBase?.CurrentMarketPrice ?? 0;
-        return price * 0.8m;
-    }
-
-    private void ResetStats()
-    {
-        totalInvested = 0; currentValue = 0; totalProfit = 0; roi = 0;
-        topItems.Clear(); worstItems.Clear(); chartData.Clear();
-    }
-
-    private void SetupChart()
-    {
-        chartOptions = new ApexChartOptions<PortfolioHistoryPoint>
-            {
-                Chart = new Chart
-                {
-                    Toolbar = new Toolbar { Show = false },
-                    Zoom = new Zoom { Enabled = false },
-                    Background = "transparent",
-                    FontFamily = "Inter, sans-serif"
-                },
-                Colors = new List<string> { "#4e73df" },
-                Stroke = new Stroke { Curve = Curve.Smooth, Width = 3 },
-                DataLabels = new DataLabels { Enabled = false },
-                Yaxis = new List<YAxis> { new YAxis { Labels = new YAxisLabels { Formatter = @"function (value) { return value.toFixed(0) + ' G'; }" } } },
-                Xaxis = new XAxis { Labels = new XAxisLabels { Format = "dd MMM" }, Tooltip = new XAxisTooltip { Enabled = false } },
-                Tooltip = new Tooltip { X = new TooltipX { Format = "dd MMM" }, Theme = Mode.Light },
-                Grid = new Grid { BorderColor = "#f1f1f1" }
-            };
-    }
-
-    private async Task LoadChartData()
-    {
-        using var context = await DbFactory.CreateDbContextAsync();
-        var itemIds = allInventory.Select(i => i.ItemBaseId).Distinct().ToList();
-        var endDate = DateTime.UtcNow.Date;
-        var startDate = endDate.AddDays(-30);
-
-        var history = await context.MarketHistory
-            .Where(h => itemIds.Contains(h.ItemBaseId) && h.RecordedAt >= startDate)
-            .Select(h => new { h.ItemBaseId, h.Price, h.RecordedAt })
-            .ToListAsync();
-
-        if (!history.Any()) return;
-
-        chartData = new List<PortfolioHistoryPoint>();
-
-        for (var day = startDate; day <= endDate; day = day.AddDays(1))
-        {
-            decimal dailyTotal = 0;
-            foreach (var invItem in allInventory)
-            {
-                if (invItem.PurchaseDate.Date <= day)
-                {
-                    var priceRecord = history
-                        .Where(h => h.ItemBaseId == invItem.ItemBaseId && h.RecordedAt.Date <= day)
-                        .OrderByDescending(h => h.RecordedAt)
-                        .FirstOrDefault();
-
-                    if (priceRecord != null) dailyTotal += (priceRecord.Price * 0.8m * invItem.Quantity);
-                    else dailyTotal += (invItem.PurchasePrice * 0.8m * invItem.Quantity);
-                }
-            }
-            if (dailyTotal > 0 || chartData.Any())
-                chartData.Add(new PortfolioHistoryPoint { Date = day, Value = dailyTotal });
-        }
-    }
-}

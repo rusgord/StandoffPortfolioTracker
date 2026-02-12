@@ -7,6 +7,8 @@
 @inject ItemService ItemService
 @inject PriceParserService ParserService
 @inject WikiParserService WikiService
+@inject BoostService BoostService
+@inject SystemStatusService StatusService
 @rendermode InteractiveServer
 
 <style>
@@ -234,6 +236,38 @@
         </div>
     </div>
 
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-dark text-white border-0 shadow-sm">
+                <div class="card-body py-2 px-3">
+                    <small class="text-secondary d-block">Авто-обновление цен</small>
+                    <span class="fw-bold">
+                        <i class="bi bi-clock-history me-1 text-info"></i>
+                        @(StatusService.LastPriceUpdate?.ToString("HH:mm:ss") ?? "Еще не было")
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white border-0 shadow-sm">
+                <div class="card-body py-2 px-3">
+                    <small class="text-secondary d-block">Проверка бустов</small>
+                    <span class="fw-bold">
+                        <i class="bi bi-rocket-takeoff me-1 text-warning"></i>
+                        @(StatusService.LastBoostCheck?.ToString("HH:mm:ss") ?? "Еще не было")
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card @(StatusService.LastError == "Ошибок нет" ? "bg-dark" : "bg-danger") text-white border-0 shadow-sm">
+                <div class="card-body py-2 px-3">
+                    <small class="text-secondary d-block">Статус системы</small>
+                    <span class="small text-truncate d-block">@StatusService.LastError</span>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="card mb-3 border-warning">
         <div class="card-body py-2 d-flex justify-content-between align-items-center">
             <div class="d-flex gap-2">
@@ -276,6 +310,9 @@
                     {
                         <span>🖼️ PNG</span>
                     }
+                </button>
+                <button class="btn btn-sm btn-warning" @onclick="async () => await BoostService.CheckForBoostsAsync()">
+                    🚀 Обновить Бусты
                 </button>
             </div>
             @if (!string.IsNullOrEmpty(statusMessage))
@@ -716,7 +753,15 @@
     private async Task AutoSave() { if (selectedItem.Id == 0) return; isSaving = true; StateHasChanged(); try { var newCol = collections.FirstOrDefault(c => c.Id == selectedItem.CollectionId); if (newCol != null) selectedItem.Collection = newCol; await ItemService.UpdateItemAsync(selectedItem); } catch (Exception ex) { statusMessage = "Ошибка: " + ex.Message; } await Task.Delay(300); isSaving = false; StateHasChanged(); }
     private async Task CreateItemManually() { await ItemService.AddItemAsync(selectedItem); await LoadData(); }
     private async Task DeleteItem() { if (selectedItem.Id == 0) return; await ItemService.DeleteItemAsync(selectedItem.Id); CreateNewItemModel(); await LoadData(); }
-    private async Task UpdatePrice(ItemBase item, object val) { if (decimal.TryParse(val?.ToString()?.Replace(".", ","), out decimal p)) { item.CurrentMarketPrice = p; await ItemService.UpdateItemAsync(item); } }
+    private async Task UpdatePrice(ItemBase item, object val)
+    {
+        if (decimal.TryParse(val?.ToString()?.Replace(".", ","), out decimal p))
+        {
+            item.CurrentMarketPrice = p;
+            item.LastUpdate = DateTime.UtcNow; // Добавь эту строку
+            await ItemService.UpdateItemAsync(item);
+        }
+    }
 
     // === Autocomplete & Collections ===
     private async Task SelectCollectionFromSearch(GameCollection col) { selectedItem.CollectionId = col.Id; selectedItem.Collection = col; collectionSearchQuery = col.Name; isCollectionDropdownOpen = false; await AutoSave(); }
